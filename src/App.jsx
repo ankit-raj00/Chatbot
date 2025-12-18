@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
@@ -7,6 +8,8 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatPage } from './components/chat/ChatPage';
 import { MCPServerManager } from './components/mcp/MCPServerManager';
 import { ProfilePage } from './components/user/ProfilePage';
+import { LandingPage } from './components/home/LandingPage';
+import { MainLayout } from './components/layout/MainLayout';
 import './index.css';
 
 function App() {
@@ -15,13 +18,16 @@ function App() {
             <ChatProvider>
                 <BrowserRouter>
                     <Routes>
+                        <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignupPage />} />
                         <Route
                             path="/chat"
                             element={
                                 <ProtectedRoute>
-                                    <ChatPage />
+                                    <MainLayout>
+                                        <ChatPage />
+                                    </MainLayout>
                                 </ProtectedRoute>
                             }
                         />
@@ -29,7 +35,9 @@ function App() {
                             path="/chat/:conversationId"
                             element={
                                 <ProtectedRoute>
-                                    <ChatPage />
+                                    <MainLayout>
+                                        <ChatPage />
+                                    </MainLayout>
                                 </ProtectedRoute>
                             }
                         />
@@ -37,7 +45,9 @@ function App() {
                             path="/mcp-servers"
                             element={
                                 <ProtectedRoute>
-                                    <MCPServerManager />
+                                    <MainLayout>
+                                        <MCPServerManager />
+                                    </MainLayout>
                                 </ProtectedRoute>
                             }
                         />
@@ -45,11 +55,12 @@ function App() {
                             path="/profile"
                             element={
                                 <ProtectedRoute>
-                                    <ProfilePage />
+                                    <MainLayout>
+                                        <ProfilePage />
+                                    </MainLayout>
                                 </ProtectedRoute>
                             }
                         />
-                        <Route path="/" element={<Navigate to="/chat" replace />} />
                     </Routes>
                 </BrowserRouter>
             </ChatProvider>

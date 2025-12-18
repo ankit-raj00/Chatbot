@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useChat } from '../../context/ChatContext';
 import { chatService } from '../../services/chat';
 import { mcpServerService } from '../../services/mcpServer';
-import { Navbar } from '../shared/Navbar';
+
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { MessageInput } from './MessageInput';
@@ -17,17 +18,28 @@ export const ChatPage = () => {
     const [uploadedImages, setUploadedImages] = useState([]);
     const [mcpServers, setMcpServers] = useState([]);
     const [selectedTools, setSelectedTools] = useState([]);
+
+    // Sidebar states
     const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+
+    // Mobile specific states
+    const [isMobileLeftOpen, setIsMobileLeftOpen] = useState(false);
+    const [isMobileRightOpen, setIsMobileRightOpen] = useState(false);
+
     const { conversationId } = useParams();
     const navigate = useNavigate();
+
+    // Auto-close mobile sidebars on route change
+    useEffect(() => {
+        setIsMobileLeftOpen(false);
+        setIsMobileRightOpen(false);
+    }, [conversationId]);
 
     // Sync URL with state
     useEffect(() => {
         if (conversationId) {
             if (currentConversation?.id !== conversationId) {
-                // If we have the conversation in the list (loaded by sidebar), use it to get title etc.
-                // Otherwise just use ID.
                 const existing = conversations?.find(c => c.id === conversationId);
                 const conv = existing || { id: conversationId };
 
@@ -35,9 +47,7 @@ export const ChatPage = () => {
                 loadMessages(conversationId);
             }
         } else {
-            // New chat route
             if (currentConversation) {
-                // Reset state for new chat
                 setCurrentConversation(null);
                 clearMessages();
             }
@@ -76,14 +86,15 @@ export const ChatPage = () => {
 
     const handleSelectConversation = (conversation) => {
         navigate(`/chat/${conversation.id}`);
+        setIsMobileLeftOpen(false);
     };
 
     const handleNewConversation = () => {
         navigate('/chat');
+        setIsMobileLeftOpen(false);
     };
 
     const handleSendMessage = async (message) => {
-        // Add user message immediately
         const userMessage = {
             role: 'user',
             content: message,
@@ -92,7 +103,6 @@ export const ChatPage = () => {
         };
         setMessages((prev) => [...prev, userMessage]);
 
-        // Add empty assistant message for streaming
         const assistantMessage = {
             role: 'assistant',
             content: '',
@@ -104,15 +114,9 @@ export const ChatPage = () => {
 
         try {
             let response;
+            const mcpServerUrls = selectedMcpServers.map(s => s.url);
 
-            console.log('Sending message:', message);
-            console.log('Uploaded images:', uploadedImages);
-            console.log('Selected model:', selectedModel);
-
-            // Use multimodal endpoint if images are present
             if (uploadedImages.length > 0) {
-                console.log('Using multimodal endpoint');
-                const mcpServerUrls = selectedMcpServers.map(s => s.url);
                 response = await chatService.sendMessageStreamMultimodal(
                     message,
                     currentConversation?.id,
@@ -120,116 +124,32 @@ export const ChatPage = () => {
                     selectedModel,
                     uploadedImages,
                     selectedTools,
-                    (event) => {
-                        flushSync(() => {
-                            setMessages((prev) => {
-                                const updated = [...prev];
-                                const lastIndex = updated.length - 1;
-                                const lastMsg = { ...updated[lastIndex] };
-                                if (lastMsg.role === 'assistant') {
-                                    if (event.type === 'text') {
-                                        lastMsg.content += event.content;
-                                    } else if (event.type === 'tool_call') {
-                                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                                        toolSteps.push({
-                                            ...event.data,
-                                            status: 'running'
-                                        });
-                                        lastMsg.toolSteps = toolSteps;
-                                    } else if (event.type === 'tool_output') {
-                                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                                        // Match by Name and Running status
-                                        const targetIdx = toolSteps.findIndex(
-                                            visit => visit.name === event.data.name && visit.status === 'running'
-                                        );
-
-                                        if (targetIdx !== -1) {
-                                            toolSteps[targetIdx] = {
-                                                ...toolSteps[targetIdx],
-                                                result: event.data.result,
-                                                status: 'completed'
-                                            };
-                                            lastMsg.toolSteps = toolSteps;
-                                        }
-                                    }
-                                    updated[lastIndex] = lastMsg;
-                                }
-                                return updated;
-                            });
-                        });
-                    }
+                    (event) => handleStreamEvent(event)
                 );
             } else {
-                console.log('Using standard endpoint');
-                const mcpServerUrls = selectedMcpServers.map(s => s.url);
                 response = await chatService.sendMessageStream(
                     message,
                     currentConversation?.id,
                     mcpServerUrls,
                     selectedModel,
                     selectedTools,
-                    (event) => {
-                        flushSync(() => {
-                            setMessages((prev) => {
-                                const updated = [...prev];
-                                const lastIndex = updated.length - 1;
-                                const lastMsg = { ...updated[lastIndex] };
-                                if (lastMsg.role === 'assistant') {
-                                    if (event.type === 'text') {
-                                        lastMsg.content += event.content;
-                                    } else if (event.type === 'tool_call') {
-                                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                                        toolSteps.push({
-                                            ...event.data,
-                                            status: 'running'
-                                        });
-                                        lastMsg.toolSteps = toolSteps;
-                                    } else if (event.type === 'tool_output') {
-                                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                                        // Match by Name and Running status
-                                        const targetIdx = toolSteps.findIndex(
-                                            visit => visit.name === event.data.name && visit.status === 'running'
-                                        );
-
-                                        if (targetIdx !== -1) {
-                                            toolSteps[targetIdx] = {
-                                                ...toolSteps[targetIdx],
-                                                result: event.data.result,
-                                                status: 'completed'
-                                            };
-                                            lastMsg.toolSteps = toolSteps;
-                                        }
-                                    }
-                                    updated[lastIndex] = lastMsg;
-                                }
-                                return updated;
-                            });
-                        });
-                    }
+                    (event) => handleStreamEvent(event)
                 );
             }
 
-            // Update conversation if it's new
             if (!currentConversation && response.conversation_id) {
-                // Navigate to the new conversation URL - this will trigger the effect to set currentConversation
                 navigate(`/chat/${response.conversation_id}`, { replace: true });
             }
 
-            // Mark streaming as complete
             setMessages((prev) => {
                 const updated = [...prev];
-                const lastMsg = updated[updated.length - 1];
-                if (lastMsg.role === 'assistant') {
-                    delete lastMsg.streaming;
-                }
+                delete updated[updated.length - 1].streaming;
                 return updated;
             });
 
-            // Clear uploaded images after sending
             setUploadedImages([]);
         } catch (error) {
             console.error('Failed to send message:', error);
-            // Replace streaming message with error
             setMessages((prev) => {
                 const updated = [...prev];
                 const lastMsg = updated[updated.length - 1];
@@ -244,103 +164,171 @@ export const ChatPage = () => {
         }
     };
 
-    return (
-        <div className="h-screen flex flex-col bg-gray-50">
-            <Navbar />
+    const handleStreamEvent = (event) => {
+        flushSync(() => {
+            setMessages((prev) => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                const lastMsg = { ...updated[lastIndex] };
+                if (lastMsg.role === 'assistant') {
+                    if (event.type === 'text') {
+                        lastMsg.content += event.content;
+                    } else if (event.type === 'tool_call') {
+                        const toolSteps = [...(lastMsg.toolSteps || [])];
+                        toolSteps.push({ ...event.data, status: 'running' });
+                        lastMsg.toolSteps = toolSteps;
+                    } else if (event.type === 'tool_output') {
+                        const toolSteps = [...(lastMsg.toolSteps || [])];
+                        const targetIdx = toolSteps.findIndex(
+                            visit => visit.name === event.data.name && visit.status === 'running'
+                        );
+                        if (targetIdx !== -1) {
+                            toolSteps[targetIdx] = {
+                                ...toolSteps[targetIdx],
+                                result: event.data.result,
+                                status: 'completed'
+                            };
+                            lastMsg.toolSteps = toolSteps;
+                        }
+                    }
+                    updated[lastIndex] = lastMsg;
+                }
+                return updated;
+            });
+        });
+    };
 
-            <div className="flex-1 flex overflow-hidden relative">
-                {/* Left Sidebar Toggle Button (Visible when closed) */}
-                {!isLeftSidebarOpen && (
+    return (
+        <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-3rem)] flex gap-4 md:gap-6 relative">
+
+            {/* Mobile Sidebar Overlays */}
+            {(isMobileLeftOpen || isMobileRightOpen) && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+                    onClick={() => {
+                        setIsMobileLeftOpen(false);
+                        setIsMobileRightOpen(false);
+                    }}
+                />
+            )}
+
+            {/* Left Sidebar (Conversations) */}
+            <div
+                className={`
+                    fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+                    md:relative md:transform-none md:inset-auto md:z-0
+                    ${isMobileLeftOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                    ${isLeftSidebarOpen ? 'md:w-80' : 'md:w-0'}
+                    flex-shrink-0
+                `}
+            >
+                <div className="h-full glass-panel md:rounded-2xl flex flex-col border-r border-white/10 md:border-none">
+                    <ConversationSidebar
+                        conversations={conversations}
+                        currentConversationId={currentConversation?.id}
+                        onSelectConversation={handleSelectConversation}
+                        onNewConversation={handleNewConversation}
+                    />
+                </div>
+            </div>
+
+            {/* Main Chat Area */}
+            <div className="flex-1 min-w-0 flex flex-col glass-card h-full relative overflow-hidden p-0 rounded-2xl border-white/10">
+
+                {/* Mobile Header */}
+                <div className="flex justify-between items-center p-4 border-b border-white/5 md:hidden bg-white/5 backdrop-blur-md">
                     <button
-                        onClick={() => setIsLeftSidebarOpen(true)}
-                        className="absolute left-2 top-2 z-20 p-2 bg-white rounded-md shadow-md hover:bg-gray-50 text-gray-500 border border-gray-200"
-                        title="Open Sidebar"
+                        onClick={() => setIsMobileLeftOpen(true)}
+                        className="p-2 text-slate-300 hover:text-white bg-white/5 rounded-lg"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
-                )}
-
-                {/* Left Sidebar */}
-                <div
-                    className={`${isLeftSidebarOpen ? 'w-80' : 'w-0'} bg-white border-r border-gray-200 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden relative`}
-                >
-                    {isLeftSidebarOpen && (
-                        <>
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setIsLeftSidebarOpen(false)}
-                                className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 z-10"
-                                title="Close Sidebar"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <div className="flex-1 overflow-y-auto pt-8">
-                                <ConversationSidebar
-                                    onSelectConversation={handleSelectConversation}
-                                    onNewConversation={handleNewConversation}
-                                />
-                            </div>
-                        </>
-                    )}
+                    <span className="font-bold text-white">AgentX</span>
+                    <button
+                        onClick={() => setIsMobileRightOpen(true)}
+                        className="p-2 text-slate-300 hover:text-white bg-white/5 rounded-lg"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
                 </div>
 
-                {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col min-w-0 bg-gray-50 relative">
-                    <ChatWindow messages={messages} loading={loading} />
-                    <MessageInput
-                        onSend={handleSendMessage}
-                        disabled={loading}
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                        images={uploadedImages}
-                        onImagesChange={setUploadedImages}
+                <div className="flex-1 overflow-hidden relative">
+                    <ChatWindow
+                        messages={messages}
+                        loading={loading}
                     />
                 </div>
 
-                {/* Right Sidebar Toggle Button (Visible when closed) */}
+                <div className="shrink-0 p-4 bg-black/20 border-t border-white/5 backdrop-blur-md z-10 transition-all duration-300">
+                    <MessageInput
+                        onSendMessage={handleSendMessage}
+                        disabled={loading}
+                        uploadedImages={uploadedImages}
+                        onImagesChange={setUploadedImages}
+                        selectedModel={selectedModel}
+                        onModelChange={setSelectedModel}
+                    />
+                </div>
+            </div>
+
+            {/* Desktop Right Toggle */}
+            <div className="hidden md:block absolute right-6 top-6 z-20">
                 {!isRightSidebarOpen && (
                     <button
                         onClick={() => setIsRightSidebarOpen(true)}
-                        className="absolute right-2 top-2 z-20 p-2 bg-white rounded-md shadow-md hover:bg-gray-50 text-gray-500 border border-gray-200"
+                        className="p-2 glass-panel hover:bg-white/10 text-slate-300 transition-colors rounded-lg"
                         title="Open Tools"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </button>
                 )}
+            </div>
 
-                {/* Right Sidebar: Tools & MCP */}
-                <div
-                    className={`${isRightSidebarOpen ? 'w-80' : 'w-0'} bg-white border-l border-gray-200 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden relative`}
-                >
-                    {isRightSidebarOpen && (
-                        <>
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setIsRightSidebarOpen(false)}
-                                className="absolute top-2 left-2 p-1 text-gray-400 hover:text-gray-600 z-10"
-                                title="Close Tools"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                            <div className="flex-1 overflow-y-auto mt-6">
-                                <ToolsSidebar
-                                    mcpServers={mcpServers}
-                                    selectedMcpServers={selectedMcpServers}
-                                    onToggleMcpServer={toggleMcpServer}
-                                    selectedTools={selectedTools}
-                                    onToolsChange={setSelectedTools}
-                                />
-                            </div>
-                        </>
-                    )}
+            {/* Right Sidebar: Tools */}
+            <div
+                className={`
+                    fixed inset-y-0 right-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+                    md:relative md:transform-none md:inset-auto md:z-0
+                    ${isMobileRightOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+                    ${isRightSidebarOpen ? 'md:w-80' : 'md:w-0'}
+                    flex-shrink-0
+                `}
+            >
+                <div className="h-full glass-panel md:rounded-2xl overflow-hidden flex flex-col border-l border-white/10 md:border-none md:ml-0 bg-[#0a0a0b] md:bg-transparent">
+                    {/* Header */}
+                    <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                        <h3 className="font-semibold text-white">Tool Settings</h3>
+                        <button
+                            onClick={() => {
+                                setIsRightSidebarOpen(false);
+                                setIsMobileRightOpen(false);
+                            }}
+                            className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <ToolsSidebar
+                            mcpServers={mcpServers}
+                            selectedMcpServers={selectedMcpServers}
+                            onToggleMcpServer={toggleMcpServer}
+                            selectedTools={selectedTools}
+                            onToolsChange={setSelectedTools}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

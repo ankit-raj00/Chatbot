@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react';
 import { Message } from './Message';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
@@ -14,15 +15,17 @@ export const ChatWindow = ({ messages, loading }) => {
     }, [messages]);
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-6 bg-transparent custom-scrollbar">
             {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                    <div className="text-center">
-                        <div className="w-20 h-20 bg-gradient-to-r from-primary-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <span className="text-white font-bold text-4xl">G</span>
+                    <div className="text-center p-8 glass-panel rounded-3xl animate-float">
+                        <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-glow transform rotate-3 hover:rotate-6 transition-transform duration-500">
+                            <span className="text-white font-bold text-3xl tracking-tighter">AX</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Start a Conversation</h2>
-                        <p className="text-gray-500">Send a message to begin chatting with Gemini AI</p>
+                        <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">How can I help you?</h2>
+                        <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
+                            I'm AgentX, enhanced with MCP tools. Ask me to manage files, check context, or just chat.
+                        </p>
                     </div>
                 </div>
             ) : (
@@ -31,8 +34,8 @@ export const ChatWindow = ({ messages, loading }) => {
                         <Message key={index} message={msg} />
                     ))}
                     {loading && (
-                        <div className="flex justify-start mb-4">
-                            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3">
+                        <div className="flex justify-start mb-6">
+                            <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm px-6 py-4 backdrop-blur-md shadow-lg">
                                 <LoadingSpinner />
                             </div>
                         </div>

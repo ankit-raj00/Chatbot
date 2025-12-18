@@ -1,20 +1,23 @@
-import { useState, useRef } from 'react';
+
+import { useState, useRef, useEffect } from 'react';
 
 export const MessageInput = ({
-    onSend,
+    onSendMessage,
     disabled,
     selectedModel,
     onModelChange,
-    images = [],
+    uploadedImages = [],
     onImagesChange
 }) => {
     const [message, setMessage] = useState('');
+    const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
     const fileInputRef = useRef(null);
+    const dropdownRef = useRef(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if ((message.trim() || images.length > 0) && !disabled) {
-            onSend(message);
+        if ((message.trim() || uploadedImages.length > 0) && !disabled) {
+            onSendMessage(message);
             setMessage('');
         }
     };
@@ -24,11 +27,11 @@ export const MessageInput = ({
         const allowedFiles = files.filter(file =>
             file.type.startsWith('image/') || file.type === 'application/pdf'
         );
-        onImagesChange([...images, ...allowedFiles]);
+        onImagesChange([...uploadedImages, ...allowedFiles]);
     };
 
     const removeImage = (index) => {
-        const newImages = images.filter((_, i) => i !== index);
+        const newImages = uploadedImages.filter((_, i) => i !== index);
         onImagesChange(newImages);
     };
 
@@ -39,27 +42,45 @@ export const MessageInput = ({
         { id: 'gemini-flash-latest', name: 'Gemini Flash (Latest)' }
     ];
 
+    const currentModelName = models.find(m => m.id === selectedModel)?.name || selectedModel;
+
+    // Click outside listener
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsModelMenuOpen(false);
+            }
+        };
+
+        if (isModelMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isModelMenuOpen]);
+
     return (
-        <div className="border-t border-gray-200 bg-white p-4">
+        <div className="w-full relative">
             {/* Image Previews */}
-            {images.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                    {images.map((file, index) => (
+            {uploadedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3 px-2">
+                    {uploadedImages.map((file, index) => (
                         <div key={index} className="relative group">
-                            <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-xl border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center backdrop-blur-md">
                                 {file.type === 'application/pdf' ? (
-                                    <span className="text-xs text-center p-1 break-all">{file.name}</span>
+                                    <span className="text-xs text-center p-1 break-all text-slate-300">{file.name}</span>
                                 ) : (
                                     <img
                                         src={URL.createObjectURL(file)}
                                         alt={file.name}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                                     />
                                 )}
                             </div>
                             <button
                                 onClick={() => removeImage(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                                className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-xs backdrop-blur-sm shadow-lg transform scale-90 group-hover:scale-100"
                             >
                                 ×
                             </button>
@@ -68,12 +89,12 @@ export const MessageInput = ({
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+            <form onSubmit={handleSubmit} className="flex gap-2 items-end bg-black/40 p-2 rounded-2xl border border-white/10 backdrop-blur-xl shadow-lg relative z-20">
                 {/* File Upload Button */}
                 <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-3 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all flex-shrink-0"
                     title="Attach files"
                     disabled={disabled}
                 >
@@ -90,26 +111,61 @@ export const MessageInput = ({
                     className="hidden"
                 />
 
-                {/* Model Selector (Compact) */}
-                <div className="relative">
-                    <select
-                        value={selectedModel}
-                        onChange={(e) => onModelChange(e.target.value)}
-                        className="appearance-none bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 pr-8 cursor-pointer max-w-[150px] truncate"
+                {/* Custom Model Selector */}
+                <div ref={dropdownRef} className="relative flex-shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
                         disabled={disabled}
-                        title="Select Model"
+                        className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-sm font-medium min-w-[140px] justify-between
+                            ${isModelMenuOpen
+                                ? 'bg-white/10 border-primary/50 text-white shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]'
+                                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`}
                     >
-                        {models.map((model) => (
-                            <option key={model.id} value={model.id}>
-                                {model.name}
-                            </option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                        <span className="truncate max-w-[120px]">{currentModelName}</span>
+                        <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180 text-primary-400' : 'text-slate-500'}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
-                    </div>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isModelMenuOpen && (
+                        <div className="absolute bottom-full left-0 mb-2 w-56 p-1 bg-[#1a1a1c]/95 border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl animate-scale-in origin-bottom-left z-50 overflow-hidden">
+                            <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-white/5 mb-1">
+                                Select Model
+                            </div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                {models.map((model) => (
+                                    <button
+                                        key={model.id}
+                                        type="button"
+                                        onClick={() => {
+                                            onModelChange(model.id);
+                                            setIsModelMenuOpen(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center justify-between group transition-all
+                                            ${selectedModel === model.id
+                                                ? 'bg-primary-500/20 text-white'
+                                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                    >
+                                        <span>{model.name}</span>
+                                        {selectedModel === model.id && (
+                                            <svg className="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Text Input */}
@@ -117,19 +173,19 @@ export const MessageInput = ({
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    className="input-field flex-1 !mb-0"
+                    placeholder="Ask AgentX..."
+                    className="flex-1 w-full bg-transparent border-0 text-white placeholder-slate-500 focus:ring-0 px-2 py-3 min-w-0"
                     disabled={disabled}
                 />
 
                 {/* Send Button */}
                 <button
                     type="submit"
-                    disabled={disabled || (!message.trim() && images.length === 0)}
-                    className="btn-primary px-6 py-2.5"
+                    disabled={disabled || (!message.trim() && uploadedImages.length === 0)}
+                    className="p-3 bg-aurora-gradient text-white rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex-shrink-0"
                 >
                     <svg className="w-5 h-5 transform rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                 </button>
             </form>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { mcpServerService } from '../../services/mcpServer';
 import { MCPServerItem } from './MCPServerItem';
@@ -15,7 +16,6 @@ export const MCPServerManager = () => {
     const loadServers = async () => {
         try {
             const data = await mcpServerService.getServers();
-            // Map _id to id for frontend compatibility
             const transformedData = data.map(server => ({
                 ...server,
                 id: server._id
@@ -52,41 +52,50 @@ export const MCPServerManager = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-gray-500">Loading servers...</div>
+                <div className="text-slate-400">Loading servers...</div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-gray-900">MCP Servers</h1>
+        <div className="max-w-4xl mx-auto p-8 animate-fade-in">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-2">MCP Servers</h1>
+                    <p className="text-slate-400">Manage your Model Context Protocol connections</p>
+                </div>
+
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="btn-primary"
+                    className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20"
                 >
-                    + Add Server
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Server
                 </button>
             </div>
 
             {servers.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No MCP servers</h3>
-                    <p className="mt-1 text-sm text-gray-500">Get started by adding a new MCP server.</p>
-                    <div className="mt-6">
+                <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/20 backdrop-blur-sm">
+                    <div className="w-20 h-20 bg-primary-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg className="h-10 w-10 text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                        </svg>
+                    </div>
+                    <h3 className="mt-2 text-xl font-medium text-white">No MCP servers</h3>
+                    <p className="mt-2 text-slate-400 max-w-sm mx-auto">Extend Gemini's capabilities by connecting to external tools and data sources.</p>
+                    <div className="mt-8">
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className="btn-primary"
+                            className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all font-medium border border-white/10"
                         >
-                            + Add Your First Server
+                            Connect Your First Server
                         </button>
                     </div>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-6">
                     {servers.map((server) => (
                         <MCPServerItem
                             key={server.id}

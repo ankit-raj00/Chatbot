@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
@@ -36,47 +37,47 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <h2 className="text-2xl font-bold mb-4">Add MCP Server</h2>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+            <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+                <h2 className="text-2xl font-bold mb-6 text-white tracking-tight">Add MCP Server</h2>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
                             Server Name
                         </label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="input-field"
+                            className="input-glass w-full"
                             placeholder="My MCP Server"
                             required
                         />
                     </div>
 
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
                             Server URL
                         </label>
                         <input
                             type="url"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            className="input-field"
+                            className="input-glass w-full"
                             placeholder="https://example.com/mcp"
                             required
                         />
                     </div>
 
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
                             Authentication Type
                         </label>
                         <select
                             value={authType}
                             onChange={(e) => setAuthType(e.target.value)}
-                            className="input-field"
+                            className="input-glass w-full appearance-none bg-[#0f172a]"
                         >
                             <option value="none">None</option>
                             <option value="oauth">OAuth 2.0</option>
@@ -84,14 +85,14 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
                     </div>
 
                     {authType === 'oauth' && (
-                        <div className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
-                            <h3 className="font-medium text-sm text-gray-900">OAuth Configuration</h3>
+                        <div className="p-4 bg-white/5 rounded-xl space-y-4 border border-white/10">
+                            <h3 className="font-semibold text-sm text-primary-300 uppercase tracking-wider mb-2">OAuth Configuration</h3>
 
                             <input
                                 type="text"
                                 value={oauthConfig.client_id}
                                 onChange={(e) => setOauthConfig({ ...oauthConfig, client_id: e.target.value })}
-                                className="input-field text-sm"
+                                className="input-glass w-full text-sm"
                                 placeholder="Client ID"
                                 required
                             />
@@ -100,7 +101,7 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
                                 type="password"
                                 value={oauthConfig.client_secret}
                                 onChange={(e) => setOauthConfig({ ...oauthConfig, client_secret: e.target.value })}
-                                className="input-field text-sm"
+                                className="input-glass w-full text-sm"
                                 placeholder="Client Secret"
                                 required
                             />
@@ -109,7 +110,7 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
                                 type="url"
                                 value={oauthConfig.auth_url}
                                 onChange={(e) => setOauthConfig({ ...oauthConfig, auth_url: e.target.value })}
-                                className="input-field text-sm"
+                                className="input-glass w-full text-sm"
                                 placeholder="Authorization URL"
                                 required
                             />
@@ -118,7 +119,7 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
                                 type="url"
                                 value={oauthConfig.token_url}
                                 onChange={(e) => setOauthConfig({ ...oauthConfig, token_url: e.target.value })}
-                                className="input-field text-sm"
+                                className="input-glass w-full text-sm"
                                 placeholder="Token URL"
                                 required
                             />
@@ -127,33 +128,41 @@ export const AddMCPServerModal = ({ isOpen, onClose, onAdd }) => {
                                 type="text"
                                 value={oauthConfig.scopes}
                                 onChange={(e) => setOauthConfig({ ...oauthConfig, scopes: e.target.value })}
-                                className="input-field text-sm"
+                                className="input-glass w-full text-sm"
                                 placeholder="Scopes (space-separated)"
                             />
                         </div>
                     )}
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
                             {error}
                         </div>
                     )}
 
-                    <div className="flex justify-end space-x-3">
+                    <div className="flex justify-end gap-3 pt-2">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="btn-secondary"
+                            className="px-4 py-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors font-medium text-sm"
                             disabled={loading}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="btn-primary"
+                            className="btn-primary px-6 py-2 shadow-lg shadow-primary/20"
                             disabled={loading}
                         >
-                            {loading ? 'Adding...' : 'Add Server'}
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Adding...
+                                </span>
+                            ) : 'Add Server'}
                         </button>
                     </div>
                 </form>
