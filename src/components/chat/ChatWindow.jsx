@@ -15,21 +15,21 @@ export const ChatWindow = ({ messages, loading }) => {
     }, [messages]);
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 bg-transparent custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 bg-transparent custom-scrollbar">
             {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                    <div className="text-center p-8 glass-panel rounded-3xl animate-float">
-                        <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-glow transform rotate-3 hover:rotate-6 transition-transform duration-500">
-                            <span className="text-white font-bold text-3xl tracking-tighter">AX</span>
+                    <div className="text-center p-6 glass-panel rounded-3xl animate-float max-w-lg mx-auto">
+                        <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-500/20 rotate-3 hover:rotate-6 transition-transform duration-500">
+                            <span className="text-white font-bold text-2xl tracking-tighter">AX</span>
                         </div>
-                        <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">How can I help you?</h2>
-                        <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
+                        <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">How can I help you?</h2>
+                        <p className="text-slate-400 max-w-md mx-auto leading-relaxed text-sm">
                             I'm AgentX, enhanced with MCP tools. Ask me to manage files, check context, or just chat.
                         </p>
                     </div>
                 </div>
             ) : (
-                <>
+                <div className="max-w-4xl mx-auto w-full">
                     {messages.map((msg, index) => (
                         <Message key={index} message={msg} />
                     ))}
@@ -41,7 +41,7 @@ export const ChatWindow = ({ messages, loading }) => {
                         </div>
                     )}
                     <div ref={messagesEndRef} />
-                </>
+                </div>
             )}
         </div>
     );

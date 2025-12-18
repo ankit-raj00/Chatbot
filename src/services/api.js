@@ -19,10 +19,15 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            // If we get a 401, it means the cookie is invalid or expired
-            // We should redirect to login, but we can't use useNavigate here directly
-            // The AuthContext will handle the state update when the next check fails
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+            // Don't redirect for auth check endpoint - let it fail silently
+            const isAuthCheck = originalRequest.url?.includes('/auth/me');
+
+            // List of public pages that shouldn't trigger redirect
+            const publicPaths = ['/', '/login', '/signup'];
+            const isPublicPage = publicPaths.includes(window.location.pathname);
+
+            // Only redirect if it's NOT an auth check AND NOT on a public page
+            if (!isAuthCheck && !isPublicPage) {
                 window.location.href = '/login';
             }
         }

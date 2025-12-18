@@ -199,7 +199,7 @@ export const ChatPage = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-3rem)] flex gap-4 md:gap-6 relative">
+        <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-2rem)] flex gap-2 md:gap-4 relative transition-all duration-300">
 
             {/* Mobile Sidebar Overlays */}
             {(isMobileLeftOpen || isMobileRightOpen) && (
@@ -215,26 +215,26 @@ export const ChatPage = () => {
             {/* Left Sidebar (Conversations) */}
             <div
                 className={`
-                    fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+                    fixed inset-y-0 left-0 z-50 w-80 transform transition-all duration-300 ease-in-out overflow-hidden
                     md:relative md:transform-none md:inset-auto md:z-0
                     ${isMobileLeftOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-                    ${isLeftSidebarOpen ? 'md:w-80' : 'md:w-0'}
+                    ${isLeftSidebarOpen ? 'md:w-80 opacity-100' : 'md:w-0 opacity-0 md:opacity-100'} 
                     flex-shrink-0
                 `}
             >
-                <div className="h-full glass-panel md:rounded-2xl flex flex-col border-r border-white/10 md:border-none p-1">
+                <div className="h-full glass-panel md:rounded-2xl flex flex-col border-r border-white/10 md:border-none p-1 min-w-[20rem]">
                     {/* Header with Close Button (Desktop only behavior, but visible structurally) */}
                     <div className="flex justify-between items-center px-4 py-3 md:hidden">
-                        <span className="font-bold text-white">History</span>
-                        <button onClick={() => setIsMobileLeftOpen(false)} className="text-slate-400">
+                         <span className="font-bold text-white">History</span>
+                         <button onClick={() => setIsMobileLeftOpen(false)} className="text-slate-400">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                         </button>
                     </div>
-
+                    
                     {/* Desktop Collapse Header */}
-                    <div className="hidden md:flex justify-between items-center px-3 py-2">
+                     <div className="hidden md:flex justify-between items-center px-3 py-2 border-b border-white/5 mb-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Conversations</span>
-                        <button
+                        <button 
                             onClick={() => setIsLeftSidebarOpen(false)}
                             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                             title="Collapse Sidebar"
@@ -257,7 +257,7 @@ export const ChatPage = () => {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 min-w-0 flex flex-col glass-card h-full relative overflow-hidden p-0 rounded-2xl border-white/10">
+            <div className="flex-1 min-w-0 flex flex-col glass-card h-full relative overflow-hidden p-0 rounded-2xl border-white/10 transition-all duration-300">
 
                 {/* Mobile Header */}
                 <div className="flex justify-between items-center p-4 border-b border-white/5 md:hidden bg-white/5 backdrop-blur-md">
@@ -283,7 +283,7 @@ export const ChatPage = () => {
 
                 {/* Desktop Toggle Buttons Layer */}
                 <div className="hidden md:flex absolute top-4 left-4 right-4 justify-between z-20 pointer-events-none">
-                    {/* Left Toggle */}
+                     {/* Left Toggle */}
                     <div className="pointer-events-auto">
                         {!isLeftSidebarOpen && (
                             <button
@@ -306,8 +306,8 @@ export const ChatPage = () => {
                                 title="Open Tools"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                             </button>
                         )}
@@ -336,19 +336,19 @@ export const ChatPage = () => {
             {/* Right Sidebar: Tools */}
             <div
                 className={`
-                    fixed inset-y-0 right-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+                    fixed inset-y-0 right-0 z-50 w-80 transform transition-all duration-300 ease-in-out overflow-hidden
                     md:relative md:transform-none md:inset-auto md:z-0
                     ${isMobileRightOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
-                    ${isRightSidebarOpen ? 'md:w-80' : 'md:w-0'}
+                    ${isRightSidebarOpen ? 'md:w-80 opacity-100' : 'md:w-0 opacity-0 md:opacity-100'}
                     flex-shrink-0
                 `}
             >
-                <div className="h-full glass-panel md:rounded-2xl overflow-hidden flex flex-col border-l border-white/10 md:border-none md:ml-0 bg-[#0a0a0b] md:bg-transparent">
+                <div className="h-full glass-panel md:rounded-2xl overflow-hidden flex flex-col border-l border-white/10 md:border-none md:ml-0 bg-[#0a0a0b] md:bg-transparent min-w-[20rem]">
                     {/* Header */}
                     <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                         <h3 className="font-semibold text-white">Tool Settings</h3>
                         <div className="flex items-center gap-1">
-                            {/* Close button for Desktop */}
+                             {/* Close button for Desktop */}
                             <button
                                 onClick={() => setIsRightSidebarOpen(false)}
                                 className="hidden md:block p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"

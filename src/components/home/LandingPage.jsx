@@ -4,7 +4,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const LandingPage = () => {
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
+
+    // Treat as logged out while loading - show public landing page
+    const isLoggedIn = !loading && user;
 
     return (
         <div className="min-h-screen bg-background text-white relative overflow-x-hidden selection:bg-primary-500/30 selection:text-white flex flex-col font-sans">
@@ -25,7 +28,7 @@ export const LandingPage = () => {
                         <span className="text-xl font-bold tracking-tight text-white">AgentX</span>
                     </div>
                     <div className="flex items-center gap-4">
-                        {user ? (
+                        {isLoggedIn ? (
                             <Link
                                 to="/chat"
                                 className="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg font-semibold transition-all backdrop-blur-md border border-white/10 text-sm"
@@ -73,10 +76,10 @@ export const LandingPage = () => {
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
                         <Link
-                            to={user ? "/chat" : "/signup"}
+                            to={isLoggedIn ? "/chat" : "/signup"}
                             className="h-12 px-8 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-semibold flex items-center justify-center shadow-lg shadow-primary-500/25 transition-all"
                         >
-                            {user ? 'Open Dashboard' : 'Start Free Trial'}
+                            {isLoggedIn ? 'Open Dashboard' : 'Start Free Trial'}
                         </Link>
                         <a href="#features" className="h-12 px-8 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold flex items-center justify-center transition-all backdrop-blur-sm">
                             Learn More
