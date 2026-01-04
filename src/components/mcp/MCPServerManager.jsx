@@ -1,13 +1,17 @@
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mcpServerService } from '../../services/mcpServer';
 import { MCPServerItem } from './MCPServerItem';
 import { AddMCPServerModal } from './AddMCPServerModal';
+import { useTheme } from '../../context/ThemeContext';
 
 export const MCPServerManager = () => {
     const [servers, setServers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const navigate = useNavigate();
+    const { isDark, toggleTheme } = useTheme();
 
     useEffect(() => {
         loadServers();
@@ -51,61 +55,109 @@ export const MCPServerManager = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-slate-400">Loading servers...</div>
+            <div
+                className="min-h-screen flex items-center justify-center"
+                style={{ backgroundColor: 'var(--bg-primary)' }}
+            >
+                <div style={{ color: 'var(--text-secondary)' }}>Loading servers...</div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">MCP Servers</h1>
-                    <p className="text-slate-400">Manage your Model Context Protocol connections</p>
+        <div
+            className="min-h-screen"
+            style={{ backgroundColor: 'var(--bg-primary)' }}
+        >
+            {/* Header */}
+            <header
+                className="h-14 flex items-center justify-between px-4 border-b sticky top-0 z-10"
+                style={{
+                    borderColor: 'var(--border-color)',
+                    backgroundColor: 'var(--bg-primary)'
+                }}
+            >
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/chat')}
+                        className="p-2 rounded-lg transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>MCP Servers</span>
                 </div>
 
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Server
-                </button>
-            </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-lg transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                    >
+                        {isDark ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="btn-primary flex items-center gap-2 text-sm"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Server
+                    </button>
+                </div>
+            </header>
 
-            {servers.length === 0 ? (
-                <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/20 backdrop-blur-sm">
-                    <div className="w-20 h-20 bg-primary-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="h-10 w-10 text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Content */}
+            <div className="max-w-3xl mx-auto p-6">
+                {servers.length === 0 ? (
+                    <div
+                        className="text-center py-16 rounded-xl border border-dashed"
+                        style={{ borderColor: 'var(--border-color)' }}
+                    >
+                        <svg
+                            className="h-12 w-12 mx-auto mb-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            style={{ color: 'var(--text-secondary)' }}
+                        >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
                         </svg>
-                    </div>
-                    <h3 className="mt-2 text-xl font-medium text-white">No MCP servers</h3>
-                    <p className="mt-2 text-slate-400 max-w-sm mx-auto">Extend Gemini's capabilities by connecting to external tools and data sources.</p>
-                    <div className="mt-8">
+                        <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>No MCP servers</h3>
+                        <p className="text-sm mb-6 max-w-sm mx-auto" style={{ color: 'var(--text-secondary)' }}>
+                            Connect external tools and data sources to extend capabilities.
+                        </p>
                         <button
                             onClick={() => setIsModalOpen(true)}
-                            className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all font-medium border border-white/10"
+                            className="btn-secondary"
                         >
-                            Connect Your First Server
+                            Connect First Server
                         </button>
                     </div>
-                </div>
-            ) : (
-                <div className="grid gap-6">
-                    {servers.map((server) => (
-                        <MCPServerItem
-                            key={server.id}
-                            server={server}
-                            onDelete={handleDeleteServer}
-                            onTest={handleTestConnection}
-                        />
-                    ))}
-                </div>
-            )}
+                ) : (
+                    <div className="space-y-4">
+                        {servers.map((server) => (
+                            <MCPServerItem
+                                key={server.id}
+                                server={server}
+                                onDelete={handleDeleteServer}
+                                onTest={handleTestConnection}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
 
             <AddMCPServerModal
                 isOpen={isModalOpen}

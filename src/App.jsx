@@ -1,70 +1,64 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatPage } from './components/chat/ChatPage';
 import { MCPServerManager } from './components/mcp/MCPServerManager';
-import { ProfilePage } from './components/user/ProfilePage';
+import { ProfilePage } from './pages/ProfilePage';
 import { LandingPage } from './components/home/LandingPage';
-import { MainLayout } from './components/layout/MainLayout';
 import './index.css';
 
 function App() {
     return (
-        <AuthProvider>
-            <ChatProvider>
-                <BrowserRouter>
-                    <Routes>
-                        <Route path="/" element={<LandingPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/signup" element={<SignupPage />} />
-                        <Route
-                            path="/chat"
-                            element={
-                                <ProtectedRoute>
-                                    <MainLayout>
+        <ThemeProvider>
+            <AuthProvider>
+                <ChatProvider>
+                    <BrowserRouter>
+                        <Routes>
+                            <Route path="/" element={<LandingPage />} />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/signup" element={<SignupPage />} />
+                            <Route
+                                path="/chat"
+                                element={
+                                    <ProtectedRoute>
                                         <ChatPage />
-                                    </MainLayout>
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/chat/:conversationId"
-                            element={
-                                <ProtectedRoute>
-                                    <MainLayout>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chat/:conversationId"
+                                element={
+                                    <ProtectedRoute>
                                         <ChatPage />
-                                    </MainLayout>
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/mcp-servers"
-                            element={
-                                <ProtectedRoute>
-                                    <MainLayout>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/mcp-servers"
+                                element={
+                                    <ProtectedRoute>
                                         <MCPServerManager />
-                                    </MainLayout>
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/profile"
-                            element={
-                                <ProtectedRoute>
-                                    <MainLayout>
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/profile"
+                                element={
+                                    <ProtectedRoute>
                                         <ProfilePage />
-                                    </MainLayout>
-                                </ProtectedRoute>
-                            }
-                        />
-                    </Routes>
-                </BrowserRouter>
-            </ChatProvider>
-        </AuthProvider>
+                                    </ProtectedRoute>
+                                }
+                            />
+                        </Routes>
+                    </BrowserRouter>
+                </ChatProvider>
+            </AuthProvider>
+        </ThemeProvider>
     );
 }
 

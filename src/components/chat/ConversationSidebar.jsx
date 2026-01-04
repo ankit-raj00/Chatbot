@@ -1,72 +1,62 @@
+export const ConversationSidebar = ({
+    conversations,
+    currentConversationId,
+    onSelectConversation,
+    onDeleteConversation
+}) => {
+    if (!conversations || conversations.length === 0) {
+        return (
+            <div className="px-3 py-4 text-center">
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    No conversations yet
+                </p>
+            </div>
+        );
+    }
 
-import { useEffect } from 'react';
-import { useChat } from '../../context/ChatContext';
-import { chatService } from '../../services/chat';
-import { ConversationItem } from './ConversationItem';
+    const handleDelete = (e, conv) => {
+        e.stopPropagation();
+        e.preventDefault();
 
-export const ConversationSidebar = ({ onSelectConversation, onNewConversation }) => {
-    const { conversations, setConversations, currentConversation, setCurrentConversation } = useChat();
-
-    useEffect(() => {
-        loadConversations();
-    }, []);
-
-    const loadConversations = async () => {
-        try {
-            const data = await chatService.getConversations();
-            const transformedData = data.map(conv => ({
-                ...conv,
-                id: conv._id
-            }));
-            setConversations(transformedData);
-        } catch (error) {
-            console.error('Failed to load conversations:', error);
-        }
-    };
-
-    const handleDelete = async (conversationId) => {
-        try {
-            await chatService.deleteConversation(conversationId);
-            setConversations(conversations.filter((c) => c.id !== conversationId));
-            if (currentConversation?.id === conversationId) {
-                setCurrentConversation(null);
-            }
-        } catch (error) {
-            console.error('Failed to delete conversation:', error);
+        const title = conv.title || 'this conversation';
+        if (window.confirm(`Delete "${title}"?`)) {
+            console.log('Deleting conversation:', conv.id);
+            onDeleteConversation(conv.id);
         }
     };
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="p-4 border-b border-white/10">
-                <button
-                    onClick={onNewConversation}
-                    className="btn-primary w-full shadow-lg shadow-primary/20 hover:shadow-primary/40 flex items-center justify-center gap-2"
+        <div className="space-y-1 py-2">
+            {conversations.map((conv) => (
+                <div
+                    key={conv.id}
+                    className={`group flex items-center gap-1 px-2 py-2 rounded-lg text-sm transition-colors ${currentConversationId === conv.id ? 'font-medium' : ''
+                        }`}
+                    style={{
+                        backgroundColor: currentConversationId === conv.id ? 'var(--hover-bg)' : 'transparent',
+                    }}
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Chat
-                </button>
-            </div>
+                    <button
+                        onClick={() => onSelectConversation(conv)}
+                        className="flex-1 text-left truncate"
+                        style={{ color: 'var(--text-primary)' }}
+                    >
+                        {conv.title || 'New conversation'}
+                    </button>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {conversations.length === 0 ? (
-                    <div className="text-center py-8">
-                        <p className="text-sm text-slate-500">No conversations yet</p>
-                    </div>
-                ) : (
-                    conversations.map((conv) => (
-                        <ConversationItem
-                            key={conv.id}
-                            conversation={conv}
-                            isActive={currentConversation?.id === conv.id}
-                            onClick={() => onSelectConversation(conv)}
-                            onDelete={handleDelete}
-                        />
-                    ))
-                )}
-            </div>
+                    {/* Delete Button */}
+                    <button
+                        onClick={(e) => handleDelete(e, conv)}
+                        className="p-1 rounded transition-all opacity-0 group-hover:opacity-100"
+                        style={{ color: 'var(--text-secondary)' }}
+                        title="Delete"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            ))}
         </div>
     );
 };

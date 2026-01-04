@@ -27,15 +27,70 @@ export const ChatProvider = ({ children }) => {
         }
     });
 
-    const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+    // Initialize selectedTools from localStorage (filter out old/invalid entries)
+    const [selectedTools, setSelectedTools] = useState(() => {
+        try {
+            const saved = localStorage.getItem('selectedTools');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Filter out:
+                // 1. Old mcp: prefixed entries
+                // 2. Old Title Case entries (keep only snake_case)
+                // Valid tool_ids are snake_case like: roll_dice, get_weather
+                return parsed.filter(t =>
+                    !t.startsWith('mcp:') &&
+                    !t.includes(' ') && // Title Case has spaces
+                    t === t.toLowerCase() // Must be lowercase
+                );
+            }
+            return [];
+        } catch (e) {
+            console.error('Failed to parse selectedTools from localStorage', e);
+            return [];
+        }
+    });
+
+    // Initialize selectedModel from localStorage
+    const [selectedModel, setSelectedModel] = useState(() => {
+        return localStorage.getItem('selectedModel') || 'gemini-2.5-flash';
+    });
 
     // Persist to localStorage whenever selection changes
     useEffect(() => {
         localStorage.setItem('selectedMcpServers_v2', JSON.stringify(selectedMcpServers));
     }, [selectedMcpServers]);
 
-    // NOTE: Pre-connect removed - we now use native tools instead of built-in MCP servers
-    // External MCP servers (if any) will connect on-demand when used in chat
+    useEffect(() => {
+        localStorage.setItem('selectedTools', JSON.stringify(selectedTools));
+    }, [selectedTools]);
+
+    useEffect(() => {
+        localStorage.setItem('selectedModel', selectedModel);
+    }, [selectedModel]);
+
+    // Load conversations on mount
+    useEffect(() => {
+        loadConversations();
+    }, []);
+
+    const loadConversations = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/conversations`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // Transform _id to id for frontend compatibility
+                const transformed = data.map(conv => ({
+                    ...conv,
+                    id: conv._id || conv.id
+                }));
+                setConversations(transformed);
+            }
+        } catch (error) {
+            console.error('Failed to load conversations:', error);
+        }
+    };
 
 
     const addMessage = (message) => {
@@ -46,7 +101,33 @@ export const ChatProvider = ({ children }) => {
         setMessages([]);
     };
 
-    const toggleMcpServer = async (server) => {
+    const deleteConversation = async (conversationId) => {
+        console.log('Deleting conversation:', conversationId);
+        try {
+            const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            console.log('Delete response status:', response.status);
+            if (response.ok) {
+                // Remove from local state
+                setConversations(prev => prev.filter(c => c.id !== conversationId));
+                // Clear current if deleted
+                if (currentConversation?.id === conversationId) {
+                    setCurrentConversation(null);
+                    setMessages([]);
+                }
+                console.log('Conversation deleted successfully');
+            } else {
+                const errorData = await response.text();
+                console.error('Delete failed:', response.status, errorData);
+            }
+        } catch (error) {
+            console.error('Failed to delete conversation:', error);
+        }
+    };
+
+    const toggleMcpServer = (server) => {
         if (!server) {
             setSelectedMcpServers([]);
             return;
@@ -55,41 +136,10 @@ export const ChatProvider = ({ children }) => {
         setSelectedMcpServers((prev) => {
             const exists = prev.find(s => s.id === server.id);
             if (exists) {
-                // Remove server - call disconnect endpoint
-                fetch(`${API_BASE_URL}/mcp/disconnect`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        mcp_server_url: server.url
-                    })
-                }).catch(err => console.error('Failed to disconnect MCP server:', err));
-
+                // Remove server from selection
                 return prev.filter(s => s.id !== server.id);
             } else {
-                // Add server - call pre-connect endpoint to establish connection immediately
-                fetch(`${API_BASE_URL}/mcp/pre-connect`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        mcp_server_url: server.url
-                    })
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log(`✅ Pre-connected to ${server.name}: ${data.resources_count} resources cached`);
-                        } else {
-                            console.error(`❌ Failed to pre-connect to ${server.name}`);
-                        }
-                    })
-                    .catch(err => console.error('Failed to pre-connect MCP server:', err));
-
+                // Add server to selection
                 return [...prev, server];
             }
         });
@@ -104,10 +154,13 @@ export const ChatProvider = ({ children }) => {
         clearMessages,
         conversations,
         setConversations,
+        deleteConversation,
         selectedMcpServers,
         toggleMcpServer,
         selectedModel,
         setSelectedModel,
+        selectedTools,
+        setSelectedTools,
     };
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

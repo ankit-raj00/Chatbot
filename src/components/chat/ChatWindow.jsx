@@ -1,7 +1,5 @@
-
 import { useEffect, useRef } from 'react';
 import { Message } from './Message';
-import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 export const ChatWindow = ({ messages, loading }) => {
     const messagesEndRef = useRef(null);
@@ -15,28 +13,32 @@ export const ChatWindow = ({ messages, loading }) => {
     }, [messages]);
 
     return (
-        <div className="h-full overflow-y-auto p-4 bg-transparent custom-scrollbar">
+        <div className="flex-1 overflow-y-auto">
             {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
-                    <div className="text-center p-6 glass-panel rounded-3xl animate-float max-w-lg mx-auto">
-                        <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-500/20 rotate-3 hover:rotate-6 transition-transform duration-500">
-                            <span className="text-white font-bold text-2xl tracking-tighter">AX</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">How can I help you?</h2>
-                        <p className="text-slate-400 max-w-md mx-auto leading-relaxed text-sm">
-                            I'm AgentX, enhanced with MCP tools. Ask me to manage files, check context, or just chat.
+                    <div className="text-center max-w-md mx-auto px-4">
+                        <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                            What can I help with?
+                        </h1>
+                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                            Ask me anything or use tools to interact with your files and services.
                         </p>
                     </div>
                 </div>
             ) : (
-                <div className="max-w-4xl mx-auto w-full">
+                <div className="max-w-3xl mx-auto w-full py-4 px-4">
                     {messages.map((msg, index) => (
                         <Message key={index} message={msg} />
                     ))}
                     {loading && (
-                        <div className="flex justify-start mb-6">
-                            <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm px-6 py-4 backdrop-blur-md shadow-lg">
-                                <LoadingSpinner />
+                        <div className="flex gap-3 py-4">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--accent)' }}>
+                                <span className="text-white text-xs font-medium">AI</span>
+                            </div>
+                            <div className="flex items-center gap-1 pt-2">
+                                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--text-secondary)' }}></div>
+                                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--text-secondary)', animationDelay: '0.2s' }}></div>
+                                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--text-secondary)', animationDelay: '0.4s' }}></div>
                             </div>
                         </div>
                     )}

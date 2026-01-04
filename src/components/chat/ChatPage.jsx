@@ -1,48 +1,37 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useChat } from '../../context/ChatContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chat';
 import { mcpServerService } from '../../services/mcpServer';
 
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { MessageInput } from './MessageInput';
-import { ToolsSidebar } from './ToolsSidebar';
-
+import { SettingsPanel } from '../settings/SettingsPanel';
 
 export const ChatPage = () => {
-    const { conversations, currentConversation, setCurrentConversation, messages, setMessages, clearMessages, selectedMcpServers, toggleMcpServer, selectedModel, setSelectedModel } = useChat();
+    const { conversations, currentConversation, setCurrentConversation, messages, setMessages, clearMessages, selectedMcpServers, toggleMcpServer, selectedModel, setSelectedModel, selectedTools, setSelectedTools, deleteConversation } = useChat();
+    const { isDark, toggleTheme } = useTheme();
+    const { user, logout } = useAuth();
     const [loading, setLoading] = useState(false);
     const [uploadedImages, setUploadedImages] = useState([]);
     const [mcpServers, setMcpServers] = useState([]);
-    const [selectedTools, setSelectedTools] = useState([]);
 
-    // Sidebar states (Desktop)
-    const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-    const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-
-    // Mobile specific states
-    const [isMobileLeftOpen, setIsMobileLeftOpen] = useState(false);
-    const [isMobileRightOpen, setIsMobileRightOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     const { conversationId } = useParams();
     const navigate = useNavigate();
 
-    // Auto-close mobile sidebars on route change
-    useEffect(() => {
-        setIsMobileLeftOpen(false);
-        setIsMobileRightOpen(false);
-    }, [conversationId]);
-
-    // Sync URL with state
     useEffect(() => {
         if (conversationId) {
             if (currentConversation?.id !== conversationId) {
                 const existing = conversations?.find(c => c.id === conversationId);
                 const conv = existing || { id: conversationId };
-
                 setCurrentConversation(conv);
                 loadMessages(conversationId);
             }
@@ -86,12 +75,10 @@ export const ChatPage = () => {
 
     const handleSelectConversation = (conversation) => {
         navigate(`/chat/${conversation.id}`);
-        setIsMobileLeftOpen(false);
     };
 
     const handleNewConversation = () => {
         navigate('/chat');
-        setIsMobileLeftOpen(false);
     };
 
     const handleSendMessage = async (message) => {
@@ -199,192 +186,191 @@ export const ChatPage = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-2rem)] flex gap-2 md:gap-4 relative transition-all duration-300">
-
-            {/* Mobile Sidebar Overlays */}
-            {(isMobileLeftOpen || isMobileRightOpen) && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-                    onClick={() => {
-                        setIsMobileLeftOpen(false);
-                        setIsMobileRightOpen(false);
-                    }}
-                />
-            )}
-
-            {/* Left Sidebar (Conversations) */}
+        <div className="h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            {/* Sidebar */}
             <div
-                className={`
-                    fixed inset-y-0 left-0 z-50 w-80 transform transition-all duration-300 ease-in-out overflow-hidden
-                    md:relative md:transform-none md:inset-auto md:z-0
-                    ${isMobileLeftOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-                    ${isLeftSidebarOpen ? 'md:w-80 opacity-100' : 'md:w-0 opacity-0 md:opacity-100'} 
-                    flex-shrink-0
-                `}
+                className={`${isSidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 transition-all duration-200 overflow-hidden`}
+                style={{ backgroundColor: 'var(--bg-sidebar)' }}
             >
-                <div className="h-full glass-panel md:rounded-2xl flex flex-col border-r border-white/10 md:border-none p-1 min-w-[20rem]">
-                    {/* Header with Close Button (Desktop only behavior, but visible structurally) */}
-                    <div className="flex justify-between items-center px-4 py-3 md:hidden">
-                         <span className="font-bold text-white">History</span>
-                         <button onClick={() => setIsMobileLeftOpen(false)} className="text-slate-400">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                         </button>
-                    </div>
-                    
-                    {/* Desktop Collapse Header */}
-                     <div className="hidden md:flex justify-between items-center px-3 py-2 border-b border-white/5 mb-2">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Conversations</span>
-                        <button 
-                            onClick={() => setIsLeftSidebarOpen(false)}
-                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                            title="Collapse Sidebar"
+                <div className="w-64 h-full flex flex-col border-r" style={{ borderColor: 'var(--border-color)' }}>
+                    {/* Sidebar Header */}
+                    <div className="p-3 flex items-center justify-between">
+                        <button
+                            onClick={handleNewConversation}
+                            className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors"
+                            style={{
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-primary)'
+                            }}
                         >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            New chat
+                        </button>
+                        <button
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="ml-2 p-2 rounded-lg transition-colors"
+                            style={{ color: 'var(--text-secondary)' }}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                             </svg>
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-hidden">
+                    {/* Conversations */}
+                    <div className="flex-1 overflow-y-auto px-2">
                         <ConversationSidebar
                             conversations={conversations}
                             currentConversationId={currentConversation?.id}
                             onSelectConversation={handleSelectConversation}
-                            onNewConversation={handleNewConversation}
+                            onDeleteConversation={deleteConversation}
                         />
                     </div>
                 </div>
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 min-w-0 flex flex-col glass-card h-full relative overflow-hidden p-0 rounded-2xl border-white/10 transition-all duration-300">
-
-                {/* Mobile Header */}
-                <div className="flex justify-between items-center p-4 border-b border-white/5 md:hidden bg-white/5 backdrop-blur-md">
-                    <button
-                        onClick={() => setIsMobileLeftOpen(true)}
-                        className="p-2 text-slate-300 hover:text-white bg-white/5 rounded-lg"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                    <span className="font-bold text-white">AgentX</span>
-                    <button
-                        onClick={() => setIsMobileRightOpen(true)}
-                        className="p-2 text-slate-300 hover:text-white bg-white/5 rounded-lg"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </button>
-                </div>
-
-                {/* Desktop Toggle Buttons Layer */}
-                <div className="hidden md:flex absolute top-4 left-4 right-4 justify-between z-20 pointer-events-none">
-                     {/* Left Toggle */}
-                    <div className="pointer-events-auto">
-                        {!isLeftSidebarOpen && (
+            <div className="flex-1 flex flex-col min-w-0">
+                {/* Header */}
+                <header className="h-14 flex items-center justify-between px-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="flex items-center gap-3">
+                        {!isSidebarOpen && (
                             <button
-                                onClick={() => setIsLeftSidebarOpen(true)}
-                                className="p-2 glass-panel hover:bg-white/10 text-slate-300 transition-colors rounded-lg shadow-lg"
-                                title="Expand History"
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="p-2 rounded-lg transition-colors"
+                                style={{ color: 'var(--text-secondary)' }}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
                                 </svg>
                             </button>
                         )}
+                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>AgentX</span>
                     </div>
-                    {/* Right Toggle */}
-                    <div className="pointer-events-auto">
-                        {!isRightSidebarOpen && (
-                            <button
-                                onClick={() => setIsRightSidebarOpen(true)}
-                                className="p-2 glass-panel hover:bg-white/10 text-slate-300 transition-colors rounded-lg shadow-lg"
-                                title="Open Tools"
-                            >
+
+                    <div className="flex items-center gap-2">
+                        {/* Theme Toggle */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ color: 'var(--text-secondary)' }}
+                            title={isDark ? 'Light mode' : 'Dark mode'}
+                        >
+                            {isDark ? (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-hidden relative h-0 min-h-0">
-                    <ChatWindow
-                        messages={messages}
-                        loading={loading}
-                    />
-                </div>
-
-                <div className="shrink-0 p-4 bg-black/20 border-t border-white/5 backdrop-blur-md z-10 transition-all duration-300">
-                    <MessageInput
-                        onSendMessage={handleSendMessage}
-                        disabled={loading}
-                        uploadedImages={uploadedImages}
-                        onImagesChange={setUploadedImages}
-                        selectedModel={selectedModel}
-                        onModelChange={setSelectedModel}
-                    />
-                </div>
-            </div>
-
-            {/* Right Sidebar: Tools */}
-            <div
-                className={`
-                    fixed inset-y-0 right-0 z-50 w-80 transform transition-all duration-300 ease-in-out overflow-hidden
-                    md:relative md:transform-none md:inset-auto md:z-0
-                    ${isMobileRightOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
-                    ${isRightSidebarOpen ? 'md:w-80 opacity-100' : 'md:w-0 opacity-0 md:opacity-100'}
-                    flex-shrink-0
-                `}
-            >
-                <div className="h-full glass-panel md:rounded-2xl overflow-hidden flex flex-col border-l border-white/10 md:border-none md:ml-0 bg-[#0a0a0b] md:bg-transparent min-w-[20rem]">
-                    {/* Header */}
-                    <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                        <h3 className="font-semibold text-white">Tool Settings</h3>
-                        <div className="flex items-center gap-1">
-                             {/* Close button for Desktop */}
-                            <button
-                                onClick={() => setIsRightSidebarOpen(false)}
-                                className="hidden md:block p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                title="Collapse Sidebar"
-                            >
+                            ) : (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                                 </svg>
-                            </button>
-                            {/* Close button for Mobile */}
+                            )}
+                        </button>
+
+                        {/* Settings */}
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ color: 'var(--text-secondary)' }}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+
+                        {/* Profile */}
+                        <div className="relative">
                             <button
-                                onClick={() => {
-                                    setIsRightSidebarOpen(false); // Can technically keep it open in background but better to sync
-                                    setIsMobileRightOpen(false);
+                                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+                                style={{
+                                    backgroundColor: 'var(--accent)',
+                                    color: 'white'
                                 }}
-                                className="md:hidden p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                {user?.name?.charAt(0).toUpperCase() || 'U'}
                             </button>
+
+                            {isProfileOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setIsProfileOpen(false)}
+                                    />
+                                    <div
+                                        className="absolute right-0 top-full mt-2 w-56 rounded-lg border shadow-lg z-50 py-1"
+                                        style={{
+                                            backgroundColor: 'var(--bg-primary)',
+                                            borderColor: 'var(--border-color)'
+                                        }}
+                                    >
+                                        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                                {user?.name || 'User'}
+                                            </p>
+                                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                                {user?.email || ''}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setIsProfileOpen(false);
+                                                navigate('/profile');
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--hover-bg)]"
+                                            style={{ color: 'var(--text-primary)' }}
+                                        >
+                                            View Profile
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                await logout();
+                                                navigate('/login');
+                                            }}
+                                            className="w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--hover-bg)]"
+                                            style={{ color: 'var(--text-primary)' }}
+                                        >
+                                            Log out
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
+                </header>
 
-                    {/* Content */}
-                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        <ToolsSidebar
-                            mcpServers={mcpServers}
-                            selectedMcpServers={selectedMcpServers}
-                            onToggleMcpServer={toggleMcpServer}
-                            selectedTools={selectedTools}
-                            onToolsChange={setSelectedTools}
+                {/* Chat Content */}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                    <ChatWindow messages={messages} loading={loading} />
+
+                    <div className="p-4">
+                        <MessageInput
+                            onSendMessage={handleSendMessage}
+                            disabled={loading}
+                            uploadedImages={uploadedImages}
+                            onImagesChange={setUploadedImages}
+                            selectedModel={selectedModel}
+                            onModelChange={setSelectedModel}
                         />
                     </div>
                 </div>
             </div>
+
+            {/* Settings Panel (Slidable) */}
+            <SettingsPanel
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                mcpServers={mcpServers}
+                selectedMcpServers={selectedMcpServers}
+                onToggleMcpServer={toggleMcpServer}
+                selectedTools={selectedTools}
+                onToolsChange={setSelectedTools}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+            />
         </div>
     );
 };
