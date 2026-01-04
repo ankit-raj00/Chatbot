@@ -314,7 +314,7 @@ export const ChatPage = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden relative">
+                <div className="flex-1 overflow-hidden relative h-0 min-h-0">
                     <ChatWindow
                         messages={messages}
                         loading={loading}

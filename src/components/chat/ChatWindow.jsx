@@ -15,7 +15,7 @@ export const ChatWindow = ({ messages, loading }) => {
     }, [messages]);
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 bg-transparent custom-scrollbar">
+        <div className="h-full overflow-y-auto p-4 bg-transparent custom-scrollbar">
             {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center p-6 glass-panel rounded-3xl animate-float max-w-lg mx-auto">
