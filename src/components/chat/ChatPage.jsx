@@ -6,11 +6,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chat';
 import { mcpServerService } from '../../services/mcpServer';
+import { ragService } from '../../services/rag'; // Import RAG Service
 
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { MessageInput } from './MessageInput';
 import { SettingsPanel } from '../settings/SettingsPanel';
+import { FileUpload } from './FileUpload';
+import { ContextFileSelector } from './ContextFileSelector';
 
 export const ChatPage = () => {
     const { conversations, currentConversation, setCurrentConversation, messages, setMessages, clearMessages, selectedMcpServers, toggleMcpServer, selectedModel, setSelectedModel, selectedTools, setSelectedTools, deleteConversation } = useChat();
@@ -23,6 +26,15 @@ export const ChatPage = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+
+
+    // RAG State
+    const [isRagEnabled, setIsRagEnabled] = useState(false);
+    const [contextFiles, setContextFiles] = useState([]);
+
+
+    const [fileListVersion, setFileListVersion] = useState(0); // For refreshing the list
 
     const { conversationId } = useParams();
     const navigate = useNavigate();
@@ -98,11 +110,17 @@ export const ChatPage = () => {
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setLoading(true);
+        const mcpServerUrls = selectedMcpServers.map(s => s.url);
 
         try {
-            let response;
-            const mcpServerUrls = selectedMcpServers.map(s => s.url);
+            // Auto-enable RAG tools if Toggle is ON
+            let activeTools = [...selectedTools];
+            if (isRagEnabled) {
+                if (!activeTools.includes('search_knowledge_base')) activeTools.push('search_knowledge_base');
+                if (!activeTools.includes('read_document_page')) activeTools.push('read_document_page');
+            }
 
+            let response;
             if (uploadedImages.length > 0) {
                 response = await chatService.sendMessageStreamMultimodal(
                     message,
@@ -110,7 +128,8 @@ export const ChatPage = () => {
                     mcpServerUrls,
                     selectedModel,
                     uploadedImages,
-                    selectedTools,
+                    activeTools,
+                    contextFiles, // Pass selected files
                     (event) => handleStreamEvent(event)
                 );
             } else {
@@ -119,7 +138,8 @@ export const ChatPage = () => {
                     currentConversation?.id,
                     mcpServerUrls,
                     selectedModel,
-                    selectedTools,
+                    activeTools,
+                    contextFiles, // Pass selected files
                     (event) => handleStreamEvent(event)
                 );
             }
@@ -172,7 +192,7 @@ export const ChatPage = () => {
                         if (targetIdx !== -1) {
                             toolSteps[targetIdx] = {
                                 ...toolSteps[targetIdx],
-                                result: event.data.result,
+                                ...event.data, // Should include result
                                 status: 'completed'
                             };
                             lastMsg.toolSteps = toolSteps;
@@ -183,6 +203,11 @@ export const ChatPage = () => {
                 return updated;
             });
         });
+    };
+
+    const handleUploadComplete = (result) => {
+        console.log("File indexed:", result);
+        setFileListVersion(prev => prev + 1); // Refresh user's file list
     };
 
     return (
@@ -209,6 +234,13 @@ export const ChatPage = () => {
                             New chat
                         </button>
                         <button
+                            onClick={() => navigate('/rag-test')}
+                            className="bg-purple-900/30 hover:bg-purple-900/50 text-purple-200 ml-2 px-3 py-2.5 rounded-lg border border-purple-800 text-sm font-medium transition-colors"
+                            title="Test Retrieval"
+                        >
+                            🔍
+                        </button>
+                        <button
                             onClick={() => setIsSidebarOpen(false)}
                             className="ml-2 p-2 rounded-lg transition-colors"
                             style={{ color: 'var(--text-secondary)' }}
@@ -228,6 +260,18 @@ export const ChatPage = () => {
                             onDeleteConversation={deleteConversation}
                         />
                     </div>
+
+                    {/* Context Selection (Visible if RAG Enabled) */}
+                    <div className={`transition-opacity duration-200 ${isRagEnabled ? 'opacity-100' : 'opacity-40 grayscale pointer-events-none'}`}>
+                        <ContextFileSelector
+                            onSelectionChange={setContextFiles}
+                            disabled={!isRagEnabled}
+                            key={fileListVersion} // Force re-mount/re-fetch on upload
+                        />
+                    </div>
+
+                    {/* RAG Upload Area (Moved to bottom of sidebar) */}
+                    <FileUpload onUploadComplete={handleUploadComplete} />
                 </div>
             </div>
 
@@ -248,6 +292,27 @@ export const ChatPage = () => {
                             </button>
                         )}
                         <span className="font-medium" style={{ color: 'var(--text-primary)' }}>AgentX</span>
+
+                        {/* RAG Toggle */}
+                        <div className="ml-4 flex items-center gap-2">
+                            <button
+                                onClick={() => setIsRagEnabled(!isRagEnabled)}
+                                className={`
+                                    px-3 py-1 rounded-full text-xs font-medium transition-all
+                                    ${isRagEnabled
+                                        ? 'bg-[var(--accent)] text-white ring-2 ring-[var(--accent)] ring-offset-2'
+                                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                                    }
+                                `}
+                            >
+                                {isRagEnabled ? '🧠 RAG Enabled' : 'Enable RAG'}
+                            </button>
+                            {isRagEnabled && contextFiles.length > 0 && (
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                                    {contextFiles.length}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">

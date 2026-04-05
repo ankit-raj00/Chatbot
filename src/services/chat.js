@@ -11,7 +11,7 @@ export const chatService = {
         return response.data;
     },
 
-    async sendMessageStream(message, conversationId = null, mcpServerUrls = [], model = "gemini-2.5-flash", enabledTools = [], onChunk) {
+    async sendMessageStream(message, conversationId = null, mcpServerUrls = [], model = "gemini-2.5-flash", enabledTools = [], selectedFiles = [], onChunk) {
         const response = await fetch(`${API_BASE_URL}/chat/stream`, {
             method: 'POST',
             headers: {
@@ -23,7 +23,9 @@ export const chatService = {
                 conversation_id: conversationId,
                 mcp_server_urls: mcpServerUrls,
                 model: model,
-                enabled_tools: enabledTools
+                model: model,
+                enabled_tools: enabledTools,
+                selected_files: selectedFiles
             }),
         });
 
@@ -73,7 +75,7 @@ export const chatService = {
         };
     },
 
-    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerUrls = [], model = 'gemini-2.5-flash', images = [], enabledTools = [], onChunk) {
+    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerUrls = [], model = 'gemini-2.5-flash', images = [], enabledTools = [], selectedFiles = [], onChunk) {
         const formData = new FormData();
         formData.append('message', message);
         if (conversationId) formData.append('conversation_id', conversationId);
@@ -83,6 +85,9 @@ export const chatService = {
         formData.append('model', model);
         if (enabledTools && enabledTools.length > 0) {
             formData.append('enabled_tools', JSON.stringify(enabledTools));
+        }
+        if (selectedFiles && selectedFiles.length > 0) {
+            formData.append('selected_files', JSON.stringify(selectedFiles));
         }
 
         images.forEach((image) => {

@@ -26,4 +26,13 @@ export const authService = {
             return null;
         }
     },
+
+    async checkGoogleDriveStatus() {
+        try {
+            const response = await api.get('/api/auth/google-drive/status');
+            return response.data;
+        } catch (error) {
+            return { authenticated: false };
+        }
+    },
 };
