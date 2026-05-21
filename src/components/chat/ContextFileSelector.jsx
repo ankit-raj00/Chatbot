@@ -93,7 +93,7 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
             <div className="max-h-48 overflow-y-auto px-2 pb-2 custom-scrollbar">
                 {files.map((file) => (
                     <label
-                        key={file.file_id}                      {/* ← UUID as key (unique) */}
+                        key={file.file_id}
                         className={`
                             flex items-center gap-2 p-2 rounded-lg cursor-pointer text-sm transition-colors
                             ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--bg-hover)]'}
@@ -111,7 +111,7 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
                             style={{ color: 'var(--text-primary)' }}
                             title={`${file.filename} (${file.file_id})`}
                         >
-                            {file.filename}              {/* ← show filename, filter by file_id */}
+                            {file.filename}
                         </span>
                     </label>
                 ))}
