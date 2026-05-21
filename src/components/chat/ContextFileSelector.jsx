@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ragService } from '../../services/rag';
 
+/**
+ * ContextFileSelector
+ * Displays uploaded files as checkboxes.
+ * Backend now returns: [{ file_id: "uuid", filename: "report.pdf" }]
+ * - Shows: filename  (human-readable)
+ * - Selects by: file_id (UUID for Qdrant filter)
+ */
 export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => {
-    const [files, setFiles] = useState([]);
-    const [selected, setSelected] = useState([]);
+    const [files, setFiles] = useState([]);       // [{ file_id, filename }]
+    const [selected, setSelected] = useState([]); // [file_id, ...]
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -13,11 +20,13 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
 
     const loadFiles = async () => {
         setLoading(true);
+        setError(null);
         try {
             const data = await ragService.listFiles();
-            // Data format: { files: ["a.pdf", "b.pdf"] }
-            // Sort them purely for aesthetics
-            const sorted = (data.files || []).sort();
+            // Backend returns { files: [{ file_id, filename }, ...] }
+            const sorted = (data.files || []).sort((a, b) =>
+                (a.filename || '').localeCompare(b.filename || '')
+            );
             setFiles(sorted);
         } catch (err) {
             console.error("Failed to load context files:", err);
@@ -27,15 +36,13 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
         }
     };
 
-    const toggleFile = (file) => {
+    const toggleFile = (fileId) => {
         if (disabled) return;
-
-        const newSelection = selected.includes(file)
-            ? selected.filter(f => f !== file)
-            : [...selected, file];
-
+        const newSelection = selected.includes(fileId)
+            ? selected.filter(id => id !== fileId)
+            : [...selected, fileId];
         setSelected(newSelection);
-        onSelectionChange(newSelection);
+        onSelectionChange(newSelection); // passes UUIDs to parent → sent as selected_file_ids
     };
 
     const selectAll = () => {
@@ -44,10 +51,11 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
             setSelected([]);
             onSelectionChange([]);
         } else {
-            setSelected([...files]);
-            onSelectionChange([...files]);
+            const allIds = files.map(f => f.file_id);
+            setSelected(allIds);
+            onSelectionChange(allIds);
         }
-    }
+    };
 
     if (loading) {
         return <div className="p-4 text-xs text-[var(--text-secondary)] animate-pulse">Loading files...</div>;
@@ -85,7 +93,7 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
             <div className="max-h-48 overflow-y-auto px-2 pb-2 custom-scrollbar">
                 {files.map((file) => (
                     <label
-                        key={file}
+                        key={file.file_id}                      {/* ← UUID as key (unique) */}
                         className={`
                             flex items-center gap-2 p-2 rounded-lg cursor-pointer text-sm transition-colors
                             ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--bg-hover)]'}
@@ -93,13 +101,17 @@ export const ContextFileSelector = ({ onSelectionChange, disabled = false }) => 
                     >
                         <input
                             type="checkbox"
-                            checked={selected.includes(file)}
-                            onChange={() => toggleFile(file)}
+                            checked={selected.includes(file.file_id)}
+                            onChange={() => toggleFile(file.file_id)}
                             disabled={disabled}
                             className="w-4 h-4 rounded border-gray-600 text-[var(--accent)] focus:ring-[var(--accent)] bg-transparent"
                         />
-                        <span className="truncate" style={{ color: 'var(--text-primary)' }} title={file}>
-                            {file}
+                        <span
+                            className="truncate"
+                            style={{ color: 'var(--text-primary)' }}
+                            title={`${file.filename} (${file.file_id})`}
+                        >
+                            {file.filename}              {/* ← show filename, filter by file_id */}
                         </span>
                     </label>
                 ))}

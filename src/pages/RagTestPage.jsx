@@ -84,7 +84,12 @@ const RagTestPage = () => {
                     <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-500">
                             Available Files: {files.length}
-                            {files.length > 0 && <span className="ml-2 text-gray-400">({files.join(', ')})</span>}
+                            {files.length > 0 && (
+                                <span className="ml-2 text-gray-400">
+                                    ({files.map(f => f.filename || f).join(', ')})
+                                </span>
+                            )}
+
                         </div>
                         <button
                             type="submit"

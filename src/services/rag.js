@@ -28,19 +28,14 @@ export const ragService = {
     /**
      * Sends a message to the Agentic RAG Chat.
      * @param {string} message - User query.
-     * @returns {Promise<Object>} - Answer, sources, and warnings.
+     * @param {Array<string>} selectedFileIds - Optional list of file UUIDs to filter by.
+     * @returns {Promise<Object>} - Answer, sources, hallucination_warning.
      */
-    /**
-     * Sends a message to the Agentic RAG Chat.
-     * @param {string} message - User query.
-     * @param {Array<string>} selectedFiles - Optional list of file IDs/Names to filter by.
-     * @returns {Promise<Object>} - Answer, sources, and warnings.
-     */
-    async chat(message, selectedFiles = []) {
+    async chat(message, selectedFileIds = []) {
         try {
             const payload = { message };
-            if (selectedFiles && selectedFiles.length > 0) {
-                payload.selected_files = selectedFiles;
+            if (selectedFileIds && selectedFileIds.length > 0) {
+                payload.selected_file_ids = selectedFileIds;  // backend field name
             }
             const response = await api.post('/api/v1/rag/chat', payload);
             return response.data;
