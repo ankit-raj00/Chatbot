@@ -100,11 +100,20 @@ export const LandingPage = () => {
                         )}
                     </button>
                     {isLoggedIn ? (
-                        <Link to="/chat" className="btn-primary text-sm px-4 py-2 rounded-lg shadow-lg shadow-blue-500/20">
-                            Open Workspace
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <Link to="/architecture" className="text-sm font-medium hover:text-[var(--accent)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                                Architecture
+                            </Link>
+                            <Link to="/chat" className="btn-primary text-sm px-4 py-2 rounded-lg shadow-lg shadow-blue-500/20">
+                                Open Workspace
+                            </Link>
+                        </div>
                     ) : (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
+                            <Link to="/architecture" className="text-sm font-medium hover:text-[var(--accent)] transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                                Architecture
+                            </Link>
+                            <div className="w-px h-4 bg-gray-300 dark:bg-gray-700"></div>
                             <Link to="/login" className="text-sm font-medium hover:text-[var(--accent)] transition-colors" style={{ color: 'var(--text-primary)' }}>
                                 Sign in
                             </Link>

@@ -11,6 +11,7 @@ import RagTestPage from './pages/RagTestPage';
 import { MCPServerManager } from './components/mcp/MCPServerManager';
 import { ProfilePage } from './pages/ProfilePage';
 import { LandingPage } from './components/home/LandingPage';
+import { ArchitecturePage } from './pages/ArchitecturePage';
 import './index.css';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
                     <BrowserRouter>
                         <Routes>
                             <Route path="/" element={<LandingPage />} />
+                            <Route path="/architecture" element={<ArchitecturePage />} />
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/signup" element={<SignupPage />} />
                             <Route
