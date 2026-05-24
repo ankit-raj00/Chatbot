@@ -127,25 +127,56 @@ export const ArchitecturePage = () => {
                     <div className="grid md:grid-cols-2 gap-8">
                         
                         {/* RAG Engine */}
-                        <div className="p-8 rounded-3xl border hover:shadow-lg transition-shadow bg-gradient-to-br from-transparent to-slate-50 dark:to-slate-800/50" style={{ borderColor: 'var(--border-color)' }}>
+                        <div className="p-8 rounded-3xl border hover:shadow-lg transition-shadow bg-gradient-to-br from-transparent to-slate-50 dark:to-slate-800/50 md:col-span-2" style={{ borderColor: 'var(--border-color)' }}>
                             <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-6">
                                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
                             </div>
-                            <h4 className="text-xl font-bold mb-3">1. The RAG Ingestion Engine</h4>
-                            <ul className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                <li className="flex items-start gap-2">
-                                    <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
-                                    <span><strong>Parsing:</strong> Uses <code>LlamaParse</code> to extract high-quality text and tabular data from complex PDFs.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
-                                    <span><strong>Chunking:</strong> Applies <code>RecursiveCharacterTextSplitter</code> to break down documents into semantically meaningful chunks.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
-                                    <span><strong>Vector DB:</strong> Embedded via Gemini and stored in a cloud <code>Qdrant</code> cluster, with user-level isolation using UUID payloads.</span>
-                                </li>
-                            </ul>
+                            <h4 className="text-xl font-bold mb-3">1. Multi-Modal RAG Ingestion Pipeline</h4>
+                            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                                A state-of-the-art document processing engine that doesn't just read text, but actually "sees" and understands complex PDF structures, charts, and images using a multi-library orchestration flow.
+                            </p>
+                            <div className="grid md:grid-cols-2 gap-6 mt-6">
+                                <ul className="space-y-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                    <li className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-emerald-100 dark:bg-emerald-900/30 p-1 rounded">
+                                            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                        </div>
+                                        <div>
+                                            <strong className="text-emerald-700 dark:text-emerald-400 block mb-1">Agentic Extraction (LlamaParse)</strong>
+                                            The primary engine. We use <code>llama-parse</code> in 'agentic' mode to intelligently extract text, complex tables (as HTML), and identify bounding boxes for embedded images inside PDFs.
+                                        </div>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-blue-100 dark:bg-blue-900/30 p-1 rounded">
+                                            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        </div>
+                                        <div>
+                                            <strong className="text-blue-700 dark:text-blue-400 block mb-1">Vision Analysis (Gemini 2.5 Flash Lite)</strong>
+                                            When LlamaParse detects an image/chart, it is downloaded and passed to the <code>google.genai</code> vision model to generate a rich, contextual text summary of what the image contains.
+                                        </div>
+                                    </li>
+                                </ul>
+                                <ul className="space-y-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                    <li className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-orange-100 dark:bg-orange-900/30 p-1 rounded">
+                                            <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                        </div>
+                                        <div>
+                                            <strong className="text-orange-700 dark:text-orange-400 block mb-1">Cloud Storage & Compilation</strong>
+                                            Extracted images are uploaded to <code>Cloudinary</code> for permanent hosting. The system then compiles the text, tables, and AI-generated image summaries into a single, cohesive Markdown document.
+                                        </div>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-purple-100 dark:bg-purple-900/30 p-1 rounded">
+                                            <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                        </div>
+                                        <div>
+                                            <strong className="text-purple-700 dark:text-purple-400 block mb-1">Vector Search & Fallback</strong>
+                                            The compiled Markdown is chunked via <code>RecursiveCharacterTextSplitter</code> and embedded into <code>Qdrant</code>. If cloud parsing fails, the system safely falls back to local parsing using <code>langchain_unstructured</code>.
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
 
                         {/* LangGraph */}
