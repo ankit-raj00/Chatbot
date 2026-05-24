@@ -35,4 +35,13 @@ export const authService = {
             return { authenticated: false };
         }
     },
+
+    async disconnectGoogleDrive() {
+        try {
+            const response = await api.post('/oauth/google/disconnect');
+            return response.data;
+        } catch (error) {
+            return { success: false };
+        }
+    },
 };

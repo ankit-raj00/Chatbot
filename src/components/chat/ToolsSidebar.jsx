@@ -250,6 +250,26 @@ export const ToolsSidebar = ({
                                                     Connect
                                                 </button>
                                             )}
+                                            
+                                            {isGoogleDriveTool && googleDriveAuth && (
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.preventDefault();
+                                                        await authService.disconnectGoogleDrive();
+                                                        checkAuthStatus();
+                                                        // Also uncheck it if they disconnect
+                                                        if (isSelected) toggleTool(toolId);
+                                                    }}
+                                                    className="text-xs px-2 py-1 rounded transition-colors hover:brightness-110 ml-2"
+                                                    style={{
+                                                        backgroundColor: 'var(--surface-color)',
+                                                        color: 'var(--text-secondary)',
+                                                        border: '1px solid var(--border-color)'
+                                                    }}
+                                                >
+                                                    Disconnect
+                                                </button>
+                                            )}
 
                                             {isGoogleDriveTool && googleDriveAuth && (
                                                 <span className="text-[10px] px-1.5 rounded ml-2 bg-green-500/20 text-green-500">
