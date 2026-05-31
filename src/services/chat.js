@@ -90,8 +90,12 @@ export const chatService = {
             formData.append('selected_files', JSON.stringify(selectedFiles));
         }
 
-        images.forEach((image) => {
-            formData.append('images', image);
+        images.forEach((imgObj) => {
+            if (imgObj.file) {
+                formData.append('images', imgObj.file);
+            } else {
+                formData.append('images', imgObj); // fallback if it's already a File
+            }
         });
 
         const response = await fetch(`${API_BASE_URL}/chat/stream/multimodal`, {

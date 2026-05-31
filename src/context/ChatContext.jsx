@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config';
+import { useAuth } from './AuthContext';
 
 const ChatContext = createContext(null);
 
@@ -15,6 +16,7 @@ export const ChatProvider = ({ children }) => {
     const [currentConversation, setCurrentConversation] = useState(null);
     const [messages, setMessages] = useState([]);
     const [conversations, setConversations] = useState([]);
+    const { user } = useAuth();
 
     // Initialize from localStorage
     const [selectedMcpServers, setSelectedMcpServers] = useState(() => {
@@ -68,10 +70,14 @@ export const ChatProvider = ({ children }) => {
         localStorage.setItem('selectedModel', selectedModel);
     }, [selectedModel]);
 
-    // Load conversations on mount
+    // Load conversations when user state changes (e.g., after login)
     useEffect(() => {
-        loadConversations();
-    }, []);
+        if (user) {
+            loadConversations();
+        } else {
+            setConversations([]);
+        }
+    }, [user]);
 
     const loadConversations = async () => {
         try {
