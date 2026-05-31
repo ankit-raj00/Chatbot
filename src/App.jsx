@@ -12,6 +12,10 @@ import { MCPServerManager } from './components/mcp/MCPServerManager';
 import { ProfilePage } from './pages/ProfilePage';
 import { LandingPage } from './components/home/LandingPage';
 import { ArchitecturePage } from './pages/ArchitecturePage';
+import { AdminRoute } from './components/auth/AdminRoute';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AdminUserPage } from './pages/AdminUserPage';
+import { AdminSessionPage } from './pages/AdminSessionPage';
 import './index.css';
 
 function App() {
@@ -63,6 +67,30 @@ function App() {
                                     <ProtectedRoute>
                                         <ProfilePage />
                                     </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin"
+                                element={
+                                    <AdminRoute>
+                                        <AdminDashboard />
+                                    </AdminRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin/users/:userId"
+                                element={
+                                    <AdminRoute>
+                                        <AdminUserPage />
+                                    </AdminRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin/users/:userId/sessions/:convId"
+                                element={
+                                    <AdminRoute>
+                                        <AdminSessionPage />
+                                    </AdminRoute>
                                 }
                             />
                         </Routes>
