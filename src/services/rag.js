@@ -26,6 +26,21 @@ export const ragService = {
     },
 
     /**
+     * Polls the status of an ingestion job.
+     * @param {string} jobId - The ID of the job to poll.
+     * @returns {Promise<Object>} - The job status.
+     */
+    async pollIngestionJob(jobId) {
+        try {
+            const response = await api.get(`/api/v1/ingest/job/${jobId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Job Polling Error:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Sends a message to the Agentic RAG Chat.
      * @param {string} message - User query.
      * @param {Array<string>} selectedFileIds - Optional list of file UUIDs to filter by.
@@ -72,6 +87,20 @@ export const ragService = {
         } catch (error) {
             console.error('List Files Error:', error);
             return { files: [] };
+        }
+    },
+
+    /**
+     * Deletes a file from the knowledge base.
+     * @param {string} fileId - UUID of the file.
+     */
+    async deleteFile(fileId) {
+        try {
+            const response = await api.delete(`/api/v1/rag/file/${fileId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Delete File Error:', error);
+            throw error;
         }
     }
 };

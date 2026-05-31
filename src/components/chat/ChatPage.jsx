@@ -12,8 +12,8 @@ import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { MessageInput } from './MessageInput';
 import { SettingsPanel } from '../settings/SettingsPanel';
-import { FileUpload } from './FileUpload';
 import { ContextFileSelector } from './ContextFileSelector';
+import { DocumentUploadModal } from './DocumentUploadModal';
 
 export const ChatPage = () => {
     const { conversations, currentConversation, setCurrentConversation, messages, setMessages, clearMessages, selectedMcpServers, toggleMcpServer, selectedModel, setSelectedModel, selectedTools, setSelectedTools, deleteConversation } = useChat();
@@ -32,7 +32,7 @@ export const ChatPage = () => {
     // RAG State
     const [isRagEnabled, setIsRagEnabled] = useState(false);
     const [contextFiles, setContextFiles] = useState([]);
-
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const [fileListVersion, setFileListVersion] = useState(0); // For refreshing the list
 
@@ -261,17 +261,38 @@ export const ChatPage = () => {
                         />
                     </div>
 
-                    {/* Context Selection (Visible if RAG Enabled) */}
-                    <div className={`transition-opacity duration-200 ${isRagEnabled ? 'opacity-100' : 'opacity-40 grayscale pointer-events-none'}`}>
-                        <ContextFileSelector
-                            onSelectionChange={setContextFiles}
-                            disabled={!isRagEnabled}
-                            key={fileListVersion} // Force re-mount/re-fetch on upload
-                        />
+                    {/* RAG Context Selector */}
+                    <div className="border-t" style={{ borderColor: 'var(--border-color)' }}>
+                        <div className="p-3 flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isRagEnabled}
+                                    onChange={(e) => setIsRagEnabled(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-600 text-[var(--accent)] focus:ring-[var(--accent)] bg-transparent"
+                                />
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                    Enable Agentic RAG
+                                </span>
+                            </label>
+                            <button
+                                onClick={() => setIsUploadModalOpen(true)}
+                                className="p-1.5 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+                                title="Upload Knowledge Document"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        {isRagEnabled && (
+                            <ContextFileSelector
+                                key={fileListVersion} // forces re-mount to fetch latest files when bumped
+                                onSelectionChange={setContextFiles}
+                            />
+                        )}
                     </div>
-
-                    {/* RAG Upload Area (Moved to bottom of sidebar) */}
-                    <FileUpload onUploadComplete={handleUploadComplete} />
                 </div>
             </div>
 
@@ -435,6 +456,16 @@ export const ChatPage = () => {
                 onToolsChange={setSelectedTools}
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
+            />
+
+            {/* Document Upload Modal */}
+            <DocumentUploadModal
+                isOpen={isUploadModalOpen}
+                onClose={() => setIsUploadModalOpen(false)}
+                onUploadComplete={() => {
+                    setFileListVersion(v => v + 1);
+                    if (!isRagEnabled) setIsRagEnabled(true);
+                }}
             />
         </div>
     );
