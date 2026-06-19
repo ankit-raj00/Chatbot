@@ -131,13 +131,16 @@ export const ChatPage = () => {
             }
 
             let response;
-            if (uploadedImages.length > 0) {
+            const currentImages = [...uploadedImages];
+            setUploadedImages([]); // Clear preview immediately
+
+            if (currentImages.length > 0) {
                 response = await chatService.sendMessageStreamMultimodal(
                     message,
                     currentConversation?.id,
                     mcpServerUrls,
                     selectedModel,
-                    uploadedImages,
+                    currentImages,
                     activeTools,
                     contextFiles, // Pass selected files
                     (event) => handleStreamEvent(event)
@@ -163,8 +166,6 @@ export const ChatPage = () => {
                 delete updated[updated.length - 1].streaming;
                 return updated;
             });
-
-            setUploadedImages([]);
         } catch (error) {
             console.error('Failed to send message:', error);
             setMessages((prev) => {
