@@ -54,7 +54,12 @@ export const ChatProvider = ({ children }) => {
 
     // Initialize selectedModel from localStorage
     const [selectedModel, setSelectedModel] = useState(() => {
-        return localStorage.getItem('selectedModel') || 'gemini-2.5-flash';
+        const stored = localStorage.getItem('selectedModel');
+        const validModels = ['gemini-3.1-flash-lite', 'gemini-2.5-pro', 'gemini-flash-latest'];
+        if (stored && validModels.includes(stored)) {
+            return stored;
+        }
+        return 'gemini-3.1-flash-lite';
     });
 
     // Persist to localStorage whenever selection changes

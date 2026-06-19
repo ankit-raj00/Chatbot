@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Message } from './Message';
 
-export const ChatWindow = ({ messages, loading }) => {
+export const ChatWindow = ({ messages, loading, onOpenArtifact }) => {
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -28,7 +28,7 @@ export const ChatWindow = ({ messages, loading }) => {
             ) : (
                 <div className="max-w-3xl mx-auto w-full py-4 px-4">
                     {messages.map((msg, index) => (
-                        <Message key={index} message={msg} />
+                        <Message key={index} message={msg} onOpenArtifact={onOpenArtifact} />
                     ))}
                     {loading && (
                         <div className="flex gap-3 py-4">

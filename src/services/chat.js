@@ -11,7 +11,7 @@ export const chatService = {
         return response.data;
     },
 
-    async sendMessageStream(message, conversationId = null, mcpServerUrls = [], model = "gemini-2.5-flash", enabledTools = [], selectedFiles = [], onChunk) {
+    async sendMessageStream(message, conversationId = null, mcpServerUrls = [], model = "gemini-3.1-flash-lite", enabledTools = [], selectedFiles = [], onChunk) {
         const response = await fetch(`${API_BASE_URL}/chat/stream`, {
             method: 'POST',
             headers: {
@@ -61,6 +61,18 @@ export const chatService = {
                     if (data.tool_output) {
                         onChunk({ type: 'tool_output', data: data.tool_output });
                     }
+                    if (data.skill_used) {
+                        onChunk({ type: 'skill_used', data: data.skill_used });
+                    }
+                    if (data.artifact_created) {
+                        onChunk({ type: 'artifact_created', data: data.artifact_created });
+                    }
+                    if (data.files_created) {
+                        onChunk({ type: 'files_created', data: data.files_created });
+                    }
+                    if (data.exec_output) {
+                        onChunk({ type: 'exec_output', data: data.exec_output });
+                    }
 
                     if (data.done) {
                         finalConversationId = data.conversation_id;
@@ -75,7 +87,7 @@ export const chatService = {
         };
     },
 
-    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerUrls = [], model = 'gemini-2.5-flash', images = [], enabledTools = [], selectedFiles = [], onChunk) {
+    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerUrls = [], model = 'gemini-3.1-flash-lite', images = [], enabledTools = [], selectedFiles = [], onChunk) {
         const formData = new FormData();
         formData.append('message', message);
         if (conversationId) formData.append('conversation_id', conversationId);
@@ -135,6 +147,18 @@ export const chatService = {
                     }
                     if (data.tool_output) {
                         onChunk({ type: 'tool_output', data: data.tool_output });
+                    }
+                    if (data.skill_used) {
+                        onChunk({ type: 'skill_used', data: data.skill_used });
+                    }
+                    if (data.artifact_created) {
+                        onChunk({ type: 'artifact_created', data: data.artifact_created });
+                    }
+                    if (data.files_created) {
+                        onChunk({ type: 'files_created', data: data.files_created });
+                    }
+                    if (data.exec_output) {
+                        onChunk({ type: 'exec_output', data: data.exec_output });
                     }
 
                     if (data.done) {

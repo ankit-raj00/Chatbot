@@ -8,6 +8,7 @@ import { chatService } from '../../services/chat';
 import { mcpServerService } from '../../services/mcpServer';
 import { ragService } from '../../services/rag'; // Import RAG Service
 
+import { RightPanel } from './RightPanel';
 import { ConversationSidebar } from './ConversationSidebar';
 import { ChatWindow } from './ChatWindow';
 import { MessageInput } from './MessageInput';
@@ -33,6 +34,10 @@ export const ChatPage = () => {
     const [isRagEnabled, setIsRagEnabled] = useState(false);
     const [contextFiles, setContextFiles] = useState([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+    // Right Panel State
+    const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
+    const [rightPanelContent, setRightPanelContent] = useState(null); // { type, title, data }
 
     const [fileListVersion, setFileListVersion] = useState(0); // For refreshing the list
 
@@ -197,6 +202,34 @@ export const ChatPage = () => {
                             };
                             lastMsg.toolSteps = toolSteps;
                         }
+                    } else if (event.type === 'skill_used') {
+                        const skills = [...(lastMsg.skills || [])];
+                        skills.push(event.data);
+                        lastMsg.skills = skills;
+                    } else if (event.type === 'artifact_created') {
+                        const artifacts = [...(lastMsg.artifacts || [])];
+                        artifacts.push(event.data);
+                        lastMsg.artifacts = artifacts;
+                    } else if (event.type === 'files_created') {
+                        const files = [...(lastMsg.files_created || [])];
+                        files.push(...event.data);
+                        lastMsg.files_created = files;
+                    } else if (event.type === 'exec_output') {
+                        const toolSteps = [...(lastMsg.toolSteps || [])];
+                        // Find the currently running tool
+                        const targetIdx = toolSteps.findIndex(
+                            visit => visit.status === 'running' && visit.name === event.data.tool
+                        );
+                        if (targetIdx !== -1) {
+                            const step = toolSteps[targetIdx];
+                            const exec_output = [...(step.exec_output || [])];
+                            exec_output.push(event.data);
+                            toolSteps[targetIdx] = {
+                                ...step,
+                                exec_output
+                            };
+                            lastMsg.toolSteps = toolSteps;
+                        }
                     }
                     updated[lastIndex] = lastMsg;
                 }
@@ -208,6 +241,11 @@ export const ChatPage = () => {
     const handleUploadComplete = (result) => {
         console.log("File indexed:", result);
         setFileListVersion(prev => prev + 1); // Refresh user's file list
+    };
+
+    const handleOpenArtifact = (content) => {
+        setRightPanelContent(content);
+        setIsRightPanelOpen(true);
     };
 
     return (
@@ -430,7 +468,11 @@ export const ChatPage = () => {
 
                 {/* Chat Content */}
                 <div className="flex-1 overflow-hidden flex flex-col">
-                    <ChatWindow messages={messages} loading={loading} />
+                    <ChatWindow 
+                        messages={messages} 
+                        loading={loading} 
+                        onOpenArtifact={handleOpenArtifact}
+                    />
 
                     <div className="p-4">
                         <MessageInput
@@ -444,6 +486,14 @@ export const ChatPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Right Panel */}
+            {isRightPanelOpen && (
+                <RightPanel 
+                    content={rightPanelContent} 
+                    onClose={() => setIsRightPanelOpen(false)} 
+                />
+            )}
 
             {/* Settings Panel (Slidable) */}
             <SettingsPanel
