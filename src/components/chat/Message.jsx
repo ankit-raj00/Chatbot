@@ -322,6 +322,47 @@ export const Message = ({ message, onOpenArtifact }) => {
                     </div>
                 )}
 
+                {/* User Attachments */}
+                {message.attachments && message.attachments.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                        {message.attachments.map((attachment, index) => {
+                            const name = attachment.original_name || attachment.name || "File";
+                            const ext = name.split('.').pop()?.toLowerCase() || '';
+                            const isImage = attachment.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+                            
+                            return (
+                                <div 
+                                    key={index} 
+                                    className="flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                                    style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                                    onClick={() => {
+                                        if (attachment.cloudinary_url || attachment.sandbox_path) {
+                                            const url = attachment.cloudinary_url || `/api/outputs/my/${name}`; // Use correct endpoint or cloudinary
+                                            onOpenArtifact({ type: 'file_preview', title: name, url: url, ext: ext });
+                                        }
+                                    }}
+                                    title="Preview file"
+                                >
+                                    <div className="w-8 h-8 flex flex-shrink-0 items-center justify-center rounded-md bg-[var(--bg-primary)]">
+                                        {isImage ? (
+                                            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-medium max-w-[150px] truncate" style={{ color: 'var(--text-primary)' }}>
+                                        {name}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {/* Message Content */}
                 <div
                     className="prose prose-sm max-w-none"

@@ -104,6 +104,11 @@ export const ChatPage = () => {
             content: message,
             timestamp: new Date().toISOString(),
             hasImages: uploadedImages.length > 0,
+            attachments: uploadedImages.map(img => ({
+                original_name: img.name || img.file?.name,
+                mime_type: img.file?.type,
+                sandbox_path: `uploads/${img.name || img.file?.name}`
+            }))
         };
         setMessages((prev) => [...prev, userMessage]);
 
