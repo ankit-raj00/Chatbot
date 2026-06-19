@@ -85,7 +85,7 @@ export const RightPanel = ({ content, onClose }) => {
     const isPdf    = PDF_EXTS.has(ext);
     const isText   = TEXT_EXTS.has(ext);
     const isBinary = BINARY_EXTS.has(ext);
-    const isMd     = ext === 'md';
+    const isMd     = ext === 'md' || type === 'skill';
 
     // For text files: fetch content. For PDFs: fetch as blob to bypass iframe CORS/auth issues.
     const needsTextFetch = type === 'file_preview' && isText && !initialData;
