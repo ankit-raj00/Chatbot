@@ -226,7 +226,7 @@ export const RightPanel = ({ content, onClose }) => {
                 ) : isImage ? (
                     <div className="flex justify-center items-center flex-1 p-4">
                         <img
-                            src={url}
+                            src={getFullUrl(url)}
                             alt={title}
                             className="max-w-full max-h-full object-contain rounded-lg border"
                             style={{ borderColor: 'var(--border-color)' }}
