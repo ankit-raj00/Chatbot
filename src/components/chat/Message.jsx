@@ -25,7 +25,8 @@ const FileCreatedStep = ({ file, onClick }) => {
                 onClick={(e) => {
                     e.stopPropagation();
                     const a = document.createElement('a');
-                    a.href = file.download_url;
+                    const fullUrl = file.download_url.startsWith('http') ? file.download_url : `${API_BASE_URL}${file.download_url.startsWith('/') ? '' : '/'}${file.download_url}`;
+                    a.href = fullUrl;
                     a.download = file.name;
                     document.body.appendChild(a);
                     a.click();

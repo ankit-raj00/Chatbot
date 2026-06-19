@@ -19,10 +19,16 @@ function getFileExt(title, extProp) {
     return parts.length > 1 ? parts.pop().toLowerCase() : '';
 }
 
+function getFullUrl(url) {
+    if (!url) return url;
+    if (url.startsWith('http')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 function DownloadPrompt({ title, url }) {
     const handleDownload = () => {
         const a = document.createElement('a');
-        a.href = url;
+        a.href = getFullUrl(url);
         a.download = title;
         document.body.appendChild(a);
         a.click();
@@ -92,7 +98,7 @@ export const RightPanel = ({ content, onClose }) => {
 
         if (needsTextFetch && url) {
             setLoading(true);
-            fetch(url, { credentials: 'include' })
+            fetch(getFullUrl(url), { credentials: 'include' })
                 .then(res => {
                     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
                     return res.text();
@@ -101,7 +107,7 @@ export const RightPanel = ({ content, onClose }) => {
                 .catch(err => { setFetchError(err.message); setLoading(false); });
         } else if (needsPdfFetch && url) {
             setLoading(true);
-            fetch(url, { credentials: 'include' })
+            fetch(getFullUrl(url), { credentials: 'include' })
                 .then(res => {
                     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
                     return res.blob();
@@ -123,7 +129,7 @@ export const RightPanel = ({ content, onClose }) => {
 
     const handleDownload = () => {
         const a = document.createElement('a');
-        a.href = url;
+        a.href = getFullUrl(url);
         a.download = title;
         document.body.appendChild(a);
         a.click();
