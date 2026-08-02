@@ -32,8 +32,8 @@ export const MCPServerManager = () => {
         }
     };
 
-    const handleAddServer = async (name, url, authType, oauthConfig) => {
-        const newServer = await mcpServerService.addServer(name, url, authType, oauthConfig);
+    const handleAddServer = async (config) => {
+        const newServer = await mcpServerService.addServer(config);
         setServers([{ ...newServer, id: newServer._id }, ...servers]);
     };
 

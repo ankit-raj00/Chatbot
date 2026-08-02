@@ -2,27 +2,18 @@ import api from './api';
 import { API_BASE_URL } from '../config';
 
 export const chatService = {
-    async sendMessage(message, conversationId = null, mcpServerUrl = null) {
-        const response = await api.post('/chat', {
-            message,
-            conversation_id: conversationId,
-            mcp_server_url: mcpServerUrl,
-        });
-        return response.data;
-    },
-
-    async sendMessageStream(message, conversationId = null, mcpServerUrls = [], model = "gemini-3.1-flash-lite", enabledTools = [], selectedFiles = [], onChunk) {
+    async sendMessageStream(message, conversationId = null, mcpServerIds = [], model = "antigravity/gemini-3.5-flash-medium", enabledTools = [], selectedFiles = [], onChunk, signal = undefined) {
         const response = await fetch(`${API_BASE_URL}/chat/stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             credentials: 'include',
+            signal,
             body: JSON.stringify({
                 message,
                 conversation_id: conversationId,
-                mcp_server_urls: mcpServerUrls,
-                model: model,
+                mcp_server_ids: mcpServerIds,
                 model: model,
                 enabled_tools: enabledTools,
                 selected_files: selectedFiles
@@ -87,12 +78,12 @@ export const chatService = {
         };
     },
 
-    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerUrls = [], model = 'gemini-3.1-flash-lite', images = [], enabledTools = [], selectedFiles = [], onChunk) {
+    async sendMessageStreamMultimodal(message, conversationId = null, mcpServerIds = [], model = 'antigravity/gemini-3.5-flash-medium', images = [], enabledTools = [], selectedFiles = [], onChunk, signal = undefined) {
         const formData = new FormData();
         formData.append('message', message);
         if (conversationId) formData.append('conversation_id', conversationId);
-        if (mcpServerUrls && mcpServerUrls.length > 0) {
-            formData.append('mcp_server_urls', JSON.stringify(mcpServerUrls));
+        if (mcpServerIds && mcpServerIds.length > 0) {
+            formData.append('mcp_server_ids', JSON.stringify(mcpServerIds));
         }
         formData.append('model', model);
         if (enabledTools && enabledTools.length > 0) {
@@ -113,6 +104,7 @@ export const chatService = {
         const response = await fetch(`${API_BASE_URL}/chat/stream/multimodal`, {
             method: 'POST',
             credentials: 'include',
+            signal,
             body: formData,
         });
 

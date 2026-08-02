@@ -76,9 +76,7 @@ export const SettingsPanel = ({
                                     color: 'var(--text-primary)'
                                 }}
                             >
-                                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                                <option value="gemini-flash-latest">Gemini Flash (Latest)</option>
+                                <option value="antigravity/gemini-3.5-flash-medium">Gemini 3.5 Flash (Medium)</option>
                             </select>
                         </div>
 

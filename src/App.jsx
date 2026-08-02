@@ -8,6 +8,7 @@ import { SignupPage } from './components/auth/SignupPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ChatPage } from './components/chat/ChatPage';
 import RagTestPage from './pages/RagTestPage';
+import ParserPage from './pages/ParserPage';
 import { MCPServerManager } from './components/mcp/MCPServerManager';
 import { ProfilePage } from './pages/ProfilePage';
 import { LandingPage } from './components/home/LandingPage';
@@ -58,6 +59,14 @@ function App() {
                                 element={
                                     <ProtectedRoute>
                                         <RagTestPage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/parser"
+                                element={
+                                    <ProtectedRoute>
+                                        <ParserPage />
                                     </ProtectedRoute>
                                 }
                             />

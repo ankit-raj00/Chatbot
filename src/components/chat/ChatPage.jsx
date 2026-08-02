@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useChat } from '../../context/ChatContext';
@@ -23,6 +23,15 @@ export const ChatPage = () => {
     const [loading, setLoading] = useState(false);
     const [uploadedImages, setUploadedImages] = useState([]);
     const [mcpServers, setMcpServers] = useState([]);
+    const abortControllerRef = useRef(null);
+
+    // Cancel an in-progress generation: abort the fetch (server detects the
+    // disconnect and cancels the agent run) and mark the message as stopped.
+    const handleStopGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+    };
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -115,12 +124,16 @@ export const ChatPage = () => {
         const assistantMessage = {
             role: 'assistant',
             content: '',
+            timeline: [],
             timestamp: new Date().toISOString(),
             streaming: true,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setLoading(true);
-        const mcpServerUrls = selectedMcpServers.map(s => s.url);
+        const mcpServerIds = selectedMcpServers.map(s => s.id);
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         try {
             // Auto-enable RAG tools if Toggle is ON
@@ -138,22 +151,24 @@ export const ChatPage = () => {
                 response = await chatService.sendMessageStreamMultimodal(
                     message,
                     currentConversation?.id,
-                    mcpServerUrls,
+                    mcpServerIds,
                     selectedModel,
                     currentImages,
                     activeTools,
                     contextFiles, // Pass selected files
-                    (event) => handleStreamEvent(event)
+                    (event) => handleStreamEvent(event),
+                    controller.signal
                 );
             } else {
                 response = await chatService.sendMessageStream(
                     message,
                     currentConversation?.id,
-                    mcpServerUrls,
+                    mcpServerIds,
                     selectedModel,
                     activeTools,
                     contextFiles, // Pass selected files
-                    (event) => handleStreamEvent(event)
+                    (event) => handleStreamEvent(event),
+                    controller.signal
                 );
             }
 
@@ -167,19 +182,67 @@ export const ChatPage = () => {
                 return updated;
             });
         } catch (error) {
-            console.error('Failed to send message:', error);
+            const stopped = error?.name === 'AbortError';
+            if (!stopped) console.error('Failed to send message:', error);
             setMessages((prev) => {
                 const updated = [...prev];
                 const lastMsg = updated[updated.length - 1];
                 if (lastMsg.role === 'assistant') {
-                    lastMsg.content = 'Sorry, I encountered an error. Please try again.';
+                    if (stopped) {
+                        // Clean user-initiated stop — keep whatever streamed so far,
+                        // just mark it as stopped rather than showing an error.
+                        lastMsg.stopped = true;
+                    } else {
+                        lastMsg.content = lastMsg.content || 'Sorry, I encountered an error. Please try again.';
+                        lastMsg.error = true;
+                    }
                     delete lastMsg.streaming;
                 }
                 return updated;
             });
         } finally {
             setLoading(false);
+            abortControllerRef.current = null;
         }
+    };
+
+    // Appends to a chronologically-ordered timeline (narration text interleaved
+    // with tool calls/skills/artifacts in the order they actually happened) —
+    // mirrors services/chat_service.py's server-side timeline builder exactly,
+    // so the live view and a reloaded conversation render identically.
+    const appendTimelineEvent = (timeline, event) => {
+        const tl = [...timeline];
+        if (event.type === 'text') {
+            const last = tl[tl.length - 1];
+            if (last && last.type === 'text') {
+                tl[tl.length - 1] = { ...last, content: last.content + event.content };
+            } else {
+                tl.push({ type: 'text', content: event.content });
+            }
+        } else if (event.type === 'tool_call') {
+            tl.push({ type: 'tool', ...event.data, status: 'running' });
+        } else if (event.type === 'tool_output') {
+            for (let i = tl.length - 1; i >= 0; i--) {
+                if (tl[i].type === 'tool' && tl[i].name === event.data.name && tl[i].status === 'running') {
+                    tl[i] = { ...tl[i], ...event.data, status: 'completed' };
+                    break;
+                }
+            }
+        } else if (event.type === 'skill_used') {
+            tl.push({ type: 'skill', ...event.data });
+        } else if (event.type === 'artifact_created') {
+            tl.push({ type: 'artifact', ...event.data });
+        } else if (event.type === 'files_created') {
+            tl.push({ type: 'files_created', files: event.data });
+        } else if (event.type === 'exec_output') {
+            for (let i = tl.length - 1; i >= 0; i--) {
+                if (tl[i].type === 'tool' && tl[i].status === 'running' && tl[i].name === event.data.tool) {
+                    tl[i] = { ...tl[i], exec_output: [...(tl[i].exec_output || []), event.data] };
+                    break;
+                }
+            }
+        }
+        return tl;
     };
 
     const handleStreamEvent = (event) => {
@@ -189,54 +252,17 @@ export const ChatPage = () => {
                 const lastIndex = updated.length - 1;
                 const lastMsg = { ...updated[lastIndex] };
                 if (lastMsg.role === 'assistant') {
+                    lastMsg.timeline = appendTimelineEvent(lastMsg.timeline || [], event);
+
+                    // Keep the legacy grouped fields in sync too — some other
+                    // code (e.g. RightPanel openers) still reads message.content
+                    // directly for things like copy-to-clipboard of the final text.
                     if (event.type === 'text') {
                         lastMsg.content += event.content;
-                    } else if (event.type === 'tool_call') {
-                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                        toolSteps.push({ ...event.data, status: 'running' });
-                        lastMsg.toolSteps = toolSteps;
-                    } else if (event.type === 'tool_output') {
-                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                        const targetIdx = toolSteps.findIndex(
-                            visit => visit.name === event.data.name && visit.status === 'running'
-                        );
-                        if (targetIdx !== -1) {
-                            toolSteps[targetIdx] = {
-                                ...toolSteps[targetIdx],
-                                ...event.data, // Should include result
-                                status: 'completed'
-                            };
-                            lastMsg.toolSteps = toolSteps;
-                        }
-                    } else if (event.type === 'skill_used') {
-                        const skills = [...(lastMsg.skills || [])];
-                        skills.push(event.data);
-                        lastMsg.skills = skills;
-                    } else if (event.type === 'artifact_created') {
-                        const artifacts = [...(lastMsg.artifacts || [])];
-                        artifacts.push(event.data);
-                        lastMsg.artifacts = artifacts;
                     } else if (event.type === 'files_created') {
-                        const files = [...(lastMsg.files_created || [])];
-                        files.push(...event.data);
-                        lastMsg.files_created = files;
-                    } else if (event.type === 'exec_output') {
-                        const toolSteps = [...(lastMsg.toolSteps || [])];
-                        // Find the currently running tool
-                        const targetIdx = toolSteps.findIndex(
-                            visit => visit.status === 'running' && visit.name === event.data.tool
-                        );
-                        if (targetIdx !== -1) {
-                            const step = toolSteps[targetIdx];
-                            const exec_output = [...(step.exec_output || [])];
-                            exec_output.push(event.data);
-                            toolSteps[targetIdx] = {
-                                ...step,
-                                exec_output
-                            };
-                            lastMsg.toolSteps = toolSteps;
-                        }
+                        lastMsg.files_created = [...(lastMsg.files_created || []), ...event.data];
                     }
+
                     updated[lastIndex] = lastMsg;
                 }
                 return updated;
@@ -484,6 +510,8 @@ export const ChatPage = () => {
                         <MessageInput
                             onSendMessage={handleSendMessage}
                             disabled={loading}
+                            isGenerating={loading}
+                            onStop={handleStopGeneration}
                             uploadedImages={uploadedImages}
                             onImagesChange={setUploadedImages}
                             selectedModel={selectedModel}

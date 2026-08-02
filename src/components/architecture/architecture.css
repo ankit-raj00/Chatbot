@@ -1,0 +1,322 @@
+/* =====================================================================
+   AgentX — Architecture & Flow showcase
+   Scoped design language. Everything lives under .arch-root so it is
+   fully self-contained and cannot leak into (or be overridden by) the
+   rest of the app's ChatGPT-grey theme variables.
+
+   This file is the reference palette + motion vocabulary the rest of
+   the app can later adopt.
+   ===================================================================== */
+
+.arch-root {
+    /* ---- Canvas & surfaces (near-black, layered by luminance) ---- */
+    --arch-bg: #08080a;
+    --arch-bg-raised: #0d0d10;
+    --arch-bg-raised-2: #121216;
+    --arch-bg-inset: #0a0a0d;
+
+    /* ---- Hairlines (opacity-based so they sit on any surface) ---- */
+    --arch-line: rgba(255, 255, 255, 0.07);
+    --arch-line-strong: rgba(255, 255, 255, 0.12);
+    --arch-line-faint: rgba(255, 255, 255, 0.04);
+
+    /* ---- Type ---- */
+    --arch-text: #ededf1;
+    --arch-text-dim: #9a9aa6;
+    --arch-text-faint: #5c5c66;
+
+    /* ---- The single restrained accent: warm amber ---- */
+    --arch-accent: #e8a24a;
+    --arch-accent-bright: #f6bd63;
+    --arch-accent-deep: #b97e2f;
+    --arch-accent-wash: rgba(232, 162, 74, 0.12);
+    --arch-accent-line: rgba(232, 162, 74, 0.4);
+
+    /* ---- A cool secondary, used *only* for data/RAG accents ---- */
+    --arch-cool: #6ea8fe;
+    --arch-cool-wash: rgba(110, 168, 254, 0.1);
+
+    --arch-radius: 10px;
+    --arch-radius-lg: 16px;
+    --arch-mono: 'Söhne Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+    background: var(--arch-bg);
+    color: var(--arch-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.011em;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Fine dotted texture over the whole page — barely-there, gives depth
+   without a single gradient blob. */
+.arch-root::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 34px 34px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 40%, transparent 100%);
+}
+
+.arch-root > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---- Typographic helpers ---- */
+.arch-mono {
+    font-family: var(--arch-mono);
+    font-feature-settings: 'ss01', 'zero';
+}
+.arch-eyebrow {
+    font-family: var(--arch-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--arch-accent);
+}
+.arch-h {
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+}
+.arch-num {
+    font-family: var(--arch-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Panels ---- */
+.arch-panel {
+    background: var(--arch-bg-raised);
+    border: 1px solid var(--arch-line);
+    border-radius: var(--arch-radius-lg);
+}
+.arch-panel-inset {
+    background: var(--arch-bg-inset);
+    border: 1px solid var(--arch-line);
+    border-radius: var(--arch-radius);
+}
+
+/* A hairline that fades at both ends — used as section rules. */
+.arch-rule {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--arch-line-strong) 20%,
+        var(--arch-line-strong) 80%,
+        transparent
+    );
+}
+
+/* =====================================================================
+   Reveal-on-scroll
+   ===================================================================== */
+.arch-reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+.arch-reveal.is-in {
+    opacity: 1;
+    transform: none;
+}
+
+/* =====================================================================
+   Motion vocabulary
+   ===================================================================== */
+
+/* Nodes pulse when they're the active step in a flow. */
+@keyframes archPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 var(--arch-accent-wash);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(232, 162, 74, 0);
+    }
+}
+.arch-node-active {
+    border-color: var(--arch-accent-line) !important;
+    animation: archPulse 1.6s ease-out infinite;
+}
+.arch-node-active .arch-node-dot {
+    background: var(--arch-accent);
+    box-shadow: 0 0 12px var(--arch-accent);
+}
+
+/* Connective SVG lines that draw themselves in. */
+.arch-draw {
+    stroke-dasharray: var(--len, 400);
+    stroke-dashoffset: var(--len, 400);
+    transition: stroke-dashoffset 1.1s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.is-in .arch-draw {
+    stroke-dashoffset: 0;
+}
+
+/* A packet traveling along a flow edge. */
+@keyframes archTravel {
+    0% {
+        offset-distance: 0%;
+        opacity: 0;
+    }
+    12% {
+        opacity: 1;
+    }
+    88% {
+        opacity: 1;
+    }
+    100% {
+        offset-distance: 100%;
+        opacity: 0;
+    }
+}
+
+/* Blinking terminal cursor. */
+@keyframes archBlink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+.arch-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1.05em;
+    background: var(--arch-accent);
+    vertical-align: text-bottom;
+    animation: archBlink 1.1s step-end infinite;
+}
+
+/* Slow marquee for the "connected servers" belt. */
+@keyframes archMarquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+.arch-marquee-track {
+    display: flex;
+    width: max-content;
+    animation: archMarquee 32s linear infinite;
+}
+
+/* Hover lift for interactive cards. */
+.arch-lift {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 0.25s ease, background 0.25s ease;
+}
+.arch-lift:hover {
+    transform: translateY(-3px);
+    border-color: var(--arch-line-strong);
+}
+
+/* Scanning shimmer used in the sandbox "isolation" panels. */
+@keyframes archScan {
+    0% {
+        transform: translateY(-100%);
+    }
+    100% {
+        transform: translateY(200%);
+    }
+}
+
+/* Soft, slow drift for the hero constellation. */
+@keyframes archDrift {
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+    50% {
+        transform: translate(0, -10px);
+    }
+}
+
+/* Count-in bars for the memory / stats visual. */
+@keyframes archGrow {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* =====================================================================
+   Sticky progress rail
+   ===================================================================== */
+.arch-rail-dot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 0;
+    color: var(--arch-text-faint);
+    font-family: var(--arch-mono);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    text-align: left;
+    width: 100%;
+}
+.arch-rail-dot:hover {
+    color: var(--arch-text-dim);
+}
+.arch-rail-tick {
+    width: 18px;
+    height: 1px;
+    background: var(--arch-line-strong);
+    transition: width 0.25s ease, background 0.25s ease;
+    flex-shrink: 0;
+}
+.arch-rail-dot.is-active {
+    color: var(--arch-text);
+}
+.arch-rail-dot.is-active .arch-rail-tick {
+    width: 30px;
+    background: var(--arch-accent);
+}
+
+/* =====================================================================
+   Reduced motion — collapse everything to a static, legible state.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    .arch-root *,
+    .arch-root *::before,
+    .arch-root *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+    .arch-reveal {
+        opacity: 1;
+        transform: none;
+    }
+    .arch-draw {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Utility: hide the progress rail on narrow screens. */
+@media (max-width: 1100px) {
+    .arch-rail {
+        display: none !important;
+    }
+}

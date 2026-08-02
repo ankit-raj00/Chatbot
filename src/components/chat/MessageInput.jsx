@@ -3,6 +3,8 @@ import { useState, useRef } from 'react';
 export const MessageInput = ({
     onSendMessage,
     disabled,
+    isGenerating = false,
+    onStop,
     uploadedImages,
     onImagesChange,
     selectedModel,
@@ -133,20 +135,35 @@ export const MessageInput = ({
                         }}
                     />
 
-                    {/* Send Button */}
-                    <button
-                        type="submit"
-                        disabled={disabled || !message.trim()}
-                        className="p-2 rounded-lg transition-colors disabled:opacity-40"
-                        style={{
-                            backgroundColor: message.trim() ? 'var(--accent)' : 'transparent',
-                            color: message.trim() ? 'white' : 'var(--text-secondary)'
-                        }}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </button>
+                    {/* Send / Stop Button — becomes a Stop button while generating */}
+                    {isGenerating ? (
+                        <button
+                            type="button"
+                            onClick={onStop}
+                            title="Stop generating"
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                        >
+                            {/* stop (filled square) */}
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />
+                            </svg>
+                        </button>
+                    ) : (
+                        <button
+                            type="submit"
+                            disabled={disabled || !message.trim()}
+                            className="p-2 rounded-lg transition-colors disabled:opacity-40"
+                            style={{
+                                backgroundColor: message.trim() ? 'var(--accent)' : 'transparent',
+                                color: message.trim() ? 'white' : 'var(--text-secondary)'
+                            }}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    )}
                 </div>
             </form>
         </div>

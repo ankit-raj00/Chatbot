@@ -86,7 +86,45 @@ const LiveTerminal = ({ outputs }) => {
     );
 };
 
+// Compact single-line diff pill for edit_file calls — a targeted text
+// replacement, not a full file rewrite, so we show +added/-removed line
+// counts instead of dumping the whole file's content.
+const EditFileStep = ({ step }) => {
+    const diff = step.diff;
+    const filename = diff?.path?.split('/').pop() || diff?.path || (step.args?.path);
+    return (
+        <div
+            className="rounded-lg border flex items-center gap-2 px-3 py-2"
+            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border-color)' }}
+        >
+            <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
+                {step.status === 'running' ? 'Editing file…' : (filename ? `Edited ${filename}` : 'Edited file')}
+            </span>
+            {filename && (
+                <span
+                    className="text-xs font-mono px-1.5 py-0.5 rounded flex-shrink-0"
+                    style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
+                >
+                    {filename}
+                </span>
+            )}
+            {diff && (
+                <span className="text-xs font-mono flex-shrink-0">
+                    <span style={{ color: '#3fb950' }}>+{diff.added}</span>{' '}
+                    <span style={{ color: '#f85149' }}>-{diff.removed}</span>
+                </span>
+            )}
+        </div>
+    );
+};
+
 const ToolStep = ({ step }) => {
+    if (step.name === 'edit_file') {
+        return <EditFileStep step={step} />;
+    }
     const isCompleted = step.status === 'completed';
     const isRunning   = step.status === 'running';
     const isExecTool  = step.name === 'run_python' || step.name === 'run_shell';
@@ -160,47 +198,365 @@ const ToolStep = ({ step }) => {
                 </svg>
             </button>
 
-            {/* Details — shown while running OR when manually expanded */}
-            {expanded && (
-                <div className="border-t space-y-0" style={{ borderColor: 'var(--border-color)' }}>
-                    {/* Input */}
-                    {formattedArgs && (
-                        <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
-                                {isExecTool ? '⌨ Code' : '⌨ Input'}
-                            </p>
-                            <pre
-                                className="text-xs px-3 pb-2 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
-                                style={{ color: 'var(--text-primary)', maxHeight: '200px', overflowY: 'auto' }}
-                            >
-                                {formattedArgs}
-                            </pre>
-                        </div>
-                    )}
+            {/* Details — smoothly grows/shrinks instead of snapping open/closed.
+                Always mounted so the height transition has something to animate;
+                grid-rows[0fr->1fr] avoids needing a fixed max-height guess. */}
+            <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                    <div className="border-t space-y-0" style={{ borderColor: 'var(--border-color)' }}>
+                        {/* Input */}
+                        {formattedArgs && (
+                            <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
+                                    {isExecTool ? '⌨ Code' : '⌨ Input'}
+                                </p>
+                                <pre
+                                    className="text-xs px-3 pb-2 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
+                                    style={{ color: 'var(--text-primary)', maxHeight: '200px', overflowY: 'auto' }}
+                                >
+                                    {formattedArgs}
+                                </pre>
+                            </div>
+                        )}
 
-                    {/* Live Terminal — shown while running AND after complete */}
-                    {isExecTool && step.exec_output && step.exec_output.length > 0 && (
-                        <LiveTerminal outputs={step.exec_output} />
-                    )}
+                        {/* Live Terminal — shown while running AND after complete */}
+                        {isExecTool && step.exec_output && step.exec_output.length > 0 && (
+                            <LiveTerminal outputs={step.exec_output} />
+                        )}
 
-                    {/* Result — shown after completion */}
-                    {step.result && (
-                        <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
-                                ✓ Result
-                            </p>
-                            <pre
-                                className="text-xs px-3 pb-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
-                                style={{ color: 'var(--accent)', maxHeight: '150px', overflowY: 'auto' }}
-                            >
-                                {typeof step.result === 'string' ? step.result : JSON.stringify(step.result, null, 2)}
-                            </pre>
-                        </div>
-                    )}
+                        {/* Result — shown after completion */}
+                        {step.result && (
+                            <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
+                                    ✓ Result
+                                </p>
+                                <pre
+                                    className="text-xs px-3 pb-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
+                                    style={{ color: 'var(--accent)', maxHeight: '150px', overflowY: 'auto' }}
+                                >
+                                    {typeof step.result === 'string' ? step.result : JSON.stringify(step.result, null, 2)}
+                                </pre>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
+    );
+};
 
+// Icon shown in the timeline's connector-line node for each step type.
+const TimelineIcon = ({ type, done }) => {
+    const common = "w-4 h-4";
+    if (type === 'tool' && !done) {
+        return (
+            <svg className={`${common} animate-spin`} fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        );
+    }
+    if (type === 'tool' && done) {
+        return (
+            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+        );
+    }
+    if (type === 'skill') {
+        return (
+            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+        );
+    }
+    if (type === 'artifact') {
+        return (
+            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        );
+    }
+    if (type === 'files_created') {
+        return (
+            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+        );
+    }
+    // 'text' — narration / thinking
+    return (
+        <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    );
+};
+
+// One node in the vertical connector-line timeline: an icon-in-circle on the
+// line, with the step's content to its right. `last` skips the line segment
+// below the final entry.
+const TimelineNode = ({ type, done, last, children }) => (
+    <div className="relative flex gap-3 timeline-node-in">
+        {!last && (
+            <div
+                className="absolute left-[13px] top-7 bottom-0 w-px"
+                style={{ backgroundColor: 'var(--border-color)' }}
+            />
+        )}
+        <div
+            className="relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-300"
+            style={{
+                backgroundColor: type === 'tool' && !done ? 'var(--accent)20' : 'var(--input-bg)',
+                color: type === 'tool' && !done ? 'var(--accent)' : 'var(--text-secondary)',
+                border: '1px solid var(--border-color)'
+            }}
+        >
+            <TimelineIcon type={type} done={done} />
+        </div>
+        <div className="flex-1 min-w-0 pb-4">{children}</div>
+    </div>
+);
+
+// Shared markdown renderer used for both narration segments and the final answer.
+const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
+    <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+            code({ node, inline, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '');
+                const lang = match?.[1] || '';
+                const codeString = String(children).replace(/\n$/, '');
+
+                if (!inline && lang === 'mermaid') {
+                    return <MermaidDiagram chart={codeString} isDark={isDark} />;
+                }
+
+                if (!inline && match) {
+                    return (
+                        <details className="mb-4 rounded-lg overflow-hidden border border-[var(--border-color)] group">
+                            <summary
+                                className="px-4 py-2 cursor-pointer bg-[var(--bg-secondary)] font-medium text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors flex items-center justify-between select-none"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-[var(--text-secondary)] transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    Code Snippet ({lang})
+                                </div>
+                            </summary>
+                            <div className="border-t border-[var(--border-color)]">
+                                <SyntaxHighlighter
+                                    style={isDark ? oneDark : oneLight}
+                                    language={lang}
+                                    PreTag="div"
+                                    customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.875rem' }}
+                                    {...props}
+                                >
+                                    {codeString}
+                                </SyntaxHighlighter>
+                            </div>
+                        </details>
+                    );
+                }
+                return (
+                    <code
+                        className="px-1.5 py-0.5 rounded text-sm"
+                        style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}
+                        {...props}
+                    >
+                        {children}
+                    </code>
+                );
+            },
+            a: ({ node, ...props }) => {
+                const href = props.href || '';
+                const isSandboxFile = href.includes('/api/outputs/my/') ||
+                    (!href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('#') && href.includes('.'));
+
+                if (isSandboxFile) {
+                    let filename = href.includes('/api/outputs/my/')
+                        ? href
+                        : href.replace(/^\/?outputs\//, '').replace(/^\/+/, '');
+                    const url = href.includes('/api/outputs/my/') ? href : `/api/outputs/my/${filename}`;
+
+                    return (
+                        <a
+                            {...props}
+                            href={url}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const label = Array.isArray(props.children) ? props.children[0] : props.children || 'File';
+                                const ext = url.split('.').pop() || '';
+                                onOpenArtifact({ type: 'file_preview', title: label, url: url, ext: ext.toLowerCase() });
+                            }}
+                            style={{ color: 'var(--accent)' }}
+                            className="underline"
+                        >
+                            {props.children}
+                        </a>
+                    );
+                }
+                return (
+                    <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }} className="underline">
+                        {props.children}
+                    </a>
+                );
+            },
+            p({ children }) { return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>; },
+            ul({ children }) { return <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>; },
+            ol({ children }) { return <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>; },
+        }}
+    >
+        {content}
+    </ReactMarkdown>
+);
+
+// Renders message.timeline: a chronologically-ordered, connected sequence of
+// narration text / tool calls / skills / artifacts / created files — mirrors
+// how Claude's own agent transcript interleaves "thinking" with actions,
+// instead of grouping everything by type into separate stacked sections.
+// Minimum consecutive non-text steps before we collapse them into a single
+// "Ran N commands, edited M files..." summary line (matching Claude's own
+// transcript: a couple of steps stay visible inline, a whole cluster collapses).
+const PHASE_COLLAPSE_THRESHOLD = 3;
+
+function summarizePhase(entries) {
+    let commands = 0, edited = 0, created = 0, read = 0;
+    for (const e of entries) {
+        if (e.type === 'tool' && (e.name === 'run_python' || e.name === 'run_shell')) commands++;
+        else if (e.type === 'tool' && e.name === 'edit_file') edited++;
+        else if (e.type === 'tool' && (e.name === 'read_file_natively' || e.name === 'read_document_page')) read++;
+        else if (e.type === 'files_created') created += (e.files?.length || 0);
+        else if (e.type === 'artifact') created++;
+    }
+    const parts = [];
+    if (commands) parts.push(`Ran ${commands} command${commands > 1 ? 's' : ''}`);
+    if (edited) parts.push(`edited ${edited} file${edited > 1 ? 's' : ''}`);
+    if (created) parts.push(created === 1 ? 'created a file' : `created ${created} files`);
+    if (read) parts.push(read === 1 ? 'read a file' : `read ${read} files`);
+    return parts.join(', ') || `${entries.length} steps`;
+}
+
+// Renders the actual body for one non-text timeline entry (shared between
+// standalone rendering and rendering inside a collapsed phase group).
+function renderTimelineEntryBody(entry, onOpenArtifact) {
+    if (entry.type === 'tool') return <ToolStep step={entry} />;
+    if (entry.type === 'skill') return <SkillStep skill={entry} onClick={onOpenArtifact} />;
+    if (entry.type === 'artifact') return <ArtifactStep artifact={entry} onClick={onOpenArtifact} />;
+    if (entry.type === 'files_created') {
+        return (
+            <div className="space-y-2">
+                {entry.files.map((file, i) => <FileCreatedStep key={i} file={file} onClick={onOpenArtifact} />)}
+            </div>
+        );
+    }
+    return null;
+}
+
+// A collapsed cluster of tool/skill/artifact steps — auto-expanded while any
+// step inside is still running, manually toggleable once the phase is done.
+const PhaseGroup = ({ entries, onOpenArtifact }) => {
+    const hasRunning = entries.some(e => e.status === 'running');
+    const [manualExpanded, setManualExpanded] = useState(null);
+    const expanded = manualExpanded !== null ? manualExpanded : hasRunning;
+
+    useEffect(() => { if (hasRunning) setManualExpanded(null); }, [hasRunning]);
+
+    return (
+        <div>
+            <button
+                onClick={() => setManualExpanded(prev => !(prev !== null ? prev : hasRunning))}
+                className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+            >
+                <svg className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                {summarizePhase(entries)}
+            </button>
+
+            <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                    <div className="mt-2 ml-1">
+                        {entries.map((entry, i) => (
+                            <TimelineNode
+                                key={i}
+                                type={entry.type}
+                                done={entry.status === 'completed'}
+                                last={i === entries.length - 1}
+                            >
+                                {renderTimelineEntryBody(entry, onOpenArtifact)}
+                            </TimelineNode>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Groups a flat timeline into: standalone text nodes, standalone single steps
+// (small clusters, kept inline), and phase groups (large clusters, collapsed).
+function groupTimeline(timeline) {
+    const groups = [];
+    let run = [];
+    const flushRun = () => {
+        if (run.length === 0) return;
+        if (run.length >= PHASE_COLLAPSE_THRESHOLD) {
+            groups.push({ kind: 'phase', entries: run });
+        } else {
+            for (const e of run) groups.push({ kind: 'entry', entry: e });
+        }
+        run = [];
+    };
+    for (const entry of timeline) {
+        if (entry.type === 'text') {
+            flushRun();
+            groups.push({ kind: 'text', entry });
+        } else {
+            run.push(entry);
+        }
+    }
+    flushRun();
+    return groups;
+}
+
+const AgentTimeline = ({ timeline, isDark, onOpenArtifact }) => {
+    if (!timeline || timeline.length === 0) return null;
+    const groups = groupTimeline(timeline);
+
+    return (
+        <div className="mb-3">
+            {groups.map((group, idx) => {
+                const last = idx === groups.length - 1;
+
+                if (group.kind === 'text') {
+                    if (!group.entry.content?.trim()) return null;
+                    return (
+                        <TimelineNode key={idx} type="text" last={last}>
+                            <div className="prose prose-sm max-w-none pt-0.5" style={{ color: 'var(--text-primary)' }}>
+                                <MarkdownContent content={group.entry.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                            </div>
+                        </TimelineNode>
+                    );
+                }
+                if (group.kind === 'phase') {
+                    const anyRunning = group.entries.some(e => e.status === 'running');
+                    return (
+                        <TimelineNode key={idx} type="tool" done={!anyRunning} last={last}>
+                            <PhaseGroup entries={group.entries} onOpenArtifact={onOpenArtifact} />
+                        </TimelineNode>
+                    );
+                }
+                // kind === 'entry'
+                const entry = group.entry;
+                return (
+                    <TimelineNode key={idx} type={entry.type} done={entry.status === 'completed'} last={last}>
+                        {renderTimelineEntryBody(entry, onOpenArtifact)}
+                    </TimelineNode>
+                );
+            })}
+        </div>
     );
 };
 
@@ -286,40 +642,44 @@ export const Message = ({ message, onOpenArtifact }) => {
                     </div>
                 )}
 
-                {/* Tool Steps */}
-                {message.toolSteps && message.toolSteps.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                        {message.toolSteps.map((step, index) => (
-                            <ToolStep key={index} step={step} />
-                        ))}
-                    </div>
-                )}
-
-                {/* Skills used */}
-                {message.skills && message.skills.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                        {message.skills.map((skill, index) => (
-                            <SkillStep key={index} skill={skill} onClick={onOpenArtifact} />
-                        ))}
-                    </div>
-                )}
-
-                {/* Artifacts Created */}
-                {message.artifacts && message.artifacts.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                        {message.artifacts.map((artifact, index) => (
-                            <ArtifactStep key={index} artifact={artifact} onClick={onOpenArtifact} />
-                        ))}
-                    </div>
-                )}
-
-                {/* Files Created */}
-                {message.files_created && message.files_created.length > 0 && (
-                    <div className="mb-3 space-y-2">
-                        {message.files_created.map((file, index) => (
-                            <FileCreatedStep key={index} file={file} onClick={onOpenArtifact} />
-                        ))}
-                    </div>
+                {/* Agent timeline: narration interleaved chronologically with tool
+                    calls/skills/artifacts, connected by a vertical line — matches
+                    how the events actually happened, not grouped by type. */}
+                {message.timeline && message.timeline.length > 0 ? (
+                    <AgentTimeline timeline={message.timeline} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                ) : (
+                    // Legacy fallback for messages saved before the timeline field
+                    // existed: grouped-by-type sections, same as before.
+                    <>
+                        {message.toolSteps && message.toolSteps.length > 0 && (
+                            <div className="mb-3 space-y-2">
+                                {message.toolSteps.map((step, index) => (
+                                    <ToolStep key={index} step={step} />
+                                ))}
+                            </div>
+                        )}
+                        {message.skills && message.skills.length > 0 && (
+                            <div className="mb-3 space-y-2">
+                                {message.skills.map((skill, index) => (
+                                    <SkillStep key={index} skill={skill} onClick={onOpenArtifact} />
+                                ))}
+                            </div>
+                        )}
+                        {message.artifacts && message.artifacts.length > 0 && (
+                            <div className="mb-3 space-y-2">
+                                {message.artifacts.map((artifact, index) => (
+                                    <ArtifactStep key={index} artifact={artifact} onClick={onOpenArtifact} />
+                                ))}
+                            </div>
+                        )}
+                        {message.files_created && message.files_created.length > 0 && (
+                            <div className="mb-3 space-y-2">
+                                {message.files_created.map((file, index) => (
+                                    <FileCreatedStep key={index} file={file} onClick={onOpenArtifact} />
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {/* User Attachments */}
@@ -363,124 +723,21 @@ export const Message = ({ message, onOpenArtifact }) => {
                     </div>
                 )}
 
-                {/* Message Content */}
-                <div
-                    className="prose prose-sm max-w-none"
-                    style={{ color: 'var(--text-primary)' }}
-                >
-                    {message.content ? (
-                    <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                            code({ node, inline, className, children, ...props }) {
-                                const match = /language-(\w+)/.exec(className || '');
-                                const lang = match?.[1] || '';
-                                const codeString = String(children).replace(/\n$/, '');
-
-                                // Render mermaid diagrams inline
-                                if (!inline && lang === 'mermaid') {
-                                    return <MermaidDiagram chart={codeString} isDark={isDark} />;
-                                }
-
-                                if (!inline && match) {
-                                    return (
-                                        <details className="mb-4 rounded-lg overflow-hidden border border-[var(--border-color)] group">
-                                            <summary 
-                                                className="px-4 py-2 cursor-pointer bg-[var(--bg-secondary)] font-medium text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors flex items-center justify-between select-none"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <svg className="w-4 h-4 text-[var(--text-secondary)] transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                    Code Snippet ({lang})
-                                                </div>
-                                            </summary>
-                                            <div className="border-t border-[var(--border-color)]">
-                                                <SyntaxHighlighter
-                                                    style={isDark ? oneDark : oneLight}
-                                                    language={lang}
-                                                    PreTag="div"
-                                                    customStyle={{
-                                                        margin: 0,
-                                                        borderRadius: 0,
-                                                        fontSize: '0.875rem'
-                                                    }}
-                                                    {...props}
-                                                >
-                                                    {codeString}
-                                                </SyntaxHighlighter>
-                                            </div>
-                                        </details>
-                                    );
-                                }
-                                return (
-                                    <code
-                                        className="px-1.5 py-0.5 rounded text-sm"
-                                        style={{
-                                            backgroundColor: 'var(--input-bg)',
-                                            color: 'var(--text-primary)'
-                                        }}
-                                        {...props}
-                                    >
-                                        {children}
-                                    </code>
-                                );
-                            },
-                            a: ({ node, ...props }) => {
-                                const href = props.href || '';
-                                // Check if it's explicitly a sandbox file or looks like a relative file link
-                                const isSandboxFile = href.includes('/api/outputs/my/') || 
-                                    (!href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('#') && href.includes('.'));
-
-                                if (isSandboxFile) {
-                                    // Strip any leading path segments (e.g. "outputs/") — the route only needs the filename
-                                    let filename = href.includes('/api/outputs/my/') 
-                                        ? href 
-                                        : href.replace(/^\/?outputs\//, '').replace(/^\/+/, '');
-                                    const url = href.includes('/api/outputs/my/') ? href : `/api/outputs/my/${filename}`;
-                                        
-                                    return (
-                                        <a
-                                            {...props}
-                                            href={url}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                const label = Array.isArray(props.children) ? props.children[0] : props.children || 'File';
-                                                const ext = url.split('.').pop() || '';
-                                                onOpenArtifact({ type: 'file_preview', title: label, url: url, ext: ext.toLowerCase() });
-                                            }}
-                                            style={{ color: 'var(--accent)' }}
-                                            className="underline"
-                                        >
-                                            {props.children}
-                                        </a>
-                                    );
-                                }
-                                return (
-                                    <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }} className="underline">
-                                        {props.children}
-                                    </a>
-                                );
-                            },
-                            p({ children }) {
-                                return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>;
-                            },
-                            ul({ children }) {
-                                return <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>;
-                            },
-                            ol({ children }) {
-                                return <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>;
-                            }
-                        }}
-                    >
-                        {message.content}
-                    </ReactMarkdown>
-                    ) : (
-                        <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>
-                            {message.streaming ? 'Working...' : ''}
-                        </span>
-                    )}
-                </div>
+                {/* Message Content — for assistant messages with a timeline, the final
+                    answer is already the last 'text' node in AgentTimeline above, so
+                    this only renders for: user messages, legacy messages without a
+                    timeline, and the "Working..." placeholder before any event arrives. */}
+                {!(message.timeline && message.timeline.length > 0) && (
+                    <div className="prose prose-sm max-w-none" style={{ color: 'var(--text-primary)' }}>
+                        {message.content ? (
+                            <MarkdownContent content={message.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                        ) : (
+                            <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>
+                                {message.streaming ? 'Working...' : ''}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

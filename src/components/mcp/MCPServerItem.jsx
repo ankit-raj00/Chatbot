@@ -1,6 +1,7 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../../config';
+import { mcpServerService } from '../../services/mcpServer';
 
 export const MCPServerItem = ({ server, onDelete, onTest }) => {
     const [testing, setTesting] = useState(false);
@@ -8,6 +9,10 @@ export const MCPServerItem = ({ server, onDelete, onTest }) => {
     const [oauthStatus, setOauthStatus] = useState(null);
     const [loading, setLoading] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const [mcpOauthPolling, setMcpOauthPolling] = useState(false);
+    const pollRef = useRef(null);
+
+    const isGenericOAuth = server.auth_type === 'oauth' && server.name !== 'Google Drive MCP';
 
     useEffect(() => {
         if (server.name === 'Google Drive MCP') {
@@ -15,7 +20,33 @@ export const MCPServerItem = ({ server, onDelete, onTest }) => {
         }
         // Auto-test on mount to show tools
         handleTest();
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }, [server.id]);
+
+    const handleAuthorizeMcpOAuth = () => {
+        mcpServerService.authorizeOAuth(server.id);
+        setMcpOauthPolling(true);
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = setInterval(async () => {
+            try {
+                const status = await mcpServerService.getOAuthStatus(server.id);
+                if (status.authorized) {
+                    clearInterval(pollRef.current);
+                    setMcpOauthPolling(false);
+                    server.oauth_authorized = true;
+                    handleTest();
+                } else if (status.error) {
+                    clearInterval(pollRef.current);
+                    setMcpOauthPolling(false);
+                    setTestResult({ status: 'error', error: status.error });
+                }
+            } catch {
+                // keep polling — transient network error
+            }
+        }, 2000);
+        // Stop polling after 6 minutes even if nothing happened (matches backend's 5 min flow timeout).
+        setTimeout(() => { if (pollRef.current) { clearInterval(pollRef.current); setMcpOauthPolling(false); } }, 360000);
+    };
 
     const checkOAuthStatus = async () => {
         try {
@@ -94,7 +125,15 @@ export const MCPServerItem = ({ server, onDelete, onTest }) => {
                         )}
                     </div>
                     <p className="text-xs truncate mt-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                        {server.url}
+                        {server.transport === 'stdio'
+                            ? `${server.command || ''} ${(server.args || []).join(' ')}`.trim()
+                            : server.url}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                        {server.transport} · {server.auth_type}
+                        {server.auth_type === 'oauth' && (
+                            <> · {server.oauth_authorized ? '✓ authorized' : 'not authorized'}</>
+                        )}
                     </p>
                 </div>
 
@@ -165,6 +204,26 @@ export const MCPServerItem = ({ server, onDelete, onTest }) => {
                                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                             </svg>
                             Connect Google Drive
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Generic OAuth 2.1 authorization (any non-Google-Drive oauth server) */}
+            {isGenericOAuth && (
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                    {server.oauth_authorized ? (
+                        <span className="text-sm" style={{ color: 'var(--accent)' }}>
+                            ✓ Authorized
+                        </span>
+                    ) : (
+                        <button
+                            onClick={handleAuthorizeMcpOAuth}
+                            disabled={mcpOauthPolling}
+                            className="w-full px-3 py-2 rounded-lg border text-sm transition-colors"
+                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                        >
+                            {mcpOauthPolling ? 'Waiting for authorization…' : 'Authorize'}
                         </button>
                     )}
                 </div>
