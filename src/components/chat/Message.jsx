@@ -101,7 +101,7 @@ const EditFileStep = ({ step }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
-                {step.status === 'running' ? 'Editing file…' : (filename ? `Edited ${filename}` : 'Edited file')}
+                {step.status === 'running' ? 'Editing file…' : step.status === 'interrupted' ? 'Edit interrupted' : (filename ? `Edited ${filename}` : 'Edited file')}
             </span>
             {filename && (
                 <span
@@ -125,8 +125,9 @@ const ToolStep = ({ step }) => {
     if (step.name === 'edit_file') {
         return <EditFileStep step={step} />;
     }
-    const isCompleted = step.status === 'completed';
-    const isRunning   = step.status === 'running';
+    const isCompleted   = step.status === 'completed';
+    const isRunning     = step.status === 'running';
+    const isInterrupted = step.status === 'interrupted';
     const isExecTool  = step.name === 'run_python' || step.name === 'run_shell';
 
     // Auto-expand while running, allow manual toggle once done
@@ -169,6 +170,10 @@ const ToolStep = ({ step }) => {
                     <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
+                ) : isInterrupted ? (
+                    <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                 ) : (
                     <svg className="w-4 h-4 flex-shrink-0 animate-spin" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -181,10 +186,15 @@ const ToolStep = ({ step }) => {
                     {step.name}
                 </span>
 
-                {/* Running badge */}
+                {/* Running / interrupted badge */}
                 {isRunning && (
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)20', color: 'var(--accent)' }}>
                         RUNNING
+                    </span>
+                )}
+                {isInterrupted && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--text-secondary)20', color: 'var(--text-secondary)' }}>
+                        INTERRUPTED
                     </span>
                 )}
 
@@ -482,7 +492,7 @@ const PhaseGroup = ({ entries, onOpenArtifact }) => {
                             <TimelineNode
                                 key={i}
                                 type={entry.type}
-                                done={entry.status === 'completed'}
+                                done={entry.status === 'completed' || entry.status === 'interrupted'}
                                 last={i === entries.length - 1}
                             >
                                 {renderTimelineEntryBody(entry, onOpenArtifact)}
@@ -551,7 +561,7 @@ const AgentTimeline = ({ timeline, isDark, onOpenArtifact }) => {
                 // kind === 'entry'
                 const entry = group.entry;
                 return (
-                    <TimelineNode key={idx} type={entry.type} done={entry.status === 'completed'} last={last}>
+                    <TimelineNode key={idx} type={entry.type} done={entry.status === 'completed' || entry.status === 'interrupted'} last={last}>
                         {renderTimelineEntryBody(entry, onOpenArtifact)}
                     </TimelineNode>
                 );
@@ -614,6 +624,18 @@ export const Message = ({ message, onOpenArtifact }) => {
     const { isDark } = useTheme();
     const isUser = message.role === 'user';
 
+    // A message saved via the client-disconnect partial-save path (browser
+    // tab closed / navigated away / network dropped mid-turn) has
+    // message.stopped === true and may contain a timeline entry that never
+    // got a completion event — it will show status:'running' FOREVER since
+    // no more events are ever coming for it. Render those as 'interrupted'
+    // instead of leaving an infinite spinner with no explanation (previously
+    // confirmed live: conversation 6a719b5fa11cf10ed1232e28, an analyze_image
+    // step spun forever with nothing telling the user the turn was cut off).
+    const displayTimeline = message.stopped && message.timeline
+        ? message.timeline.map(e => e.status === 'running' ? { ...e, status: 'interrupted' } : e)
+        : message.timeline;
+
     return (
         <div className="flex gap-4 py-4">
             {/* Avatar */}
@@ -645,8 +667,19 @@ export const Message = ({ message, onOpenArtifact }) => {
                 {/* Agent timeline: narration interleaved chronologically with tool
                     calls/skills/artifacts, connected by a vertical line — matches
                     how the events actually happened, not grouped by type. */}
-                {message.timeline && message.timeline.length > 0 ? (
-                    <AgentTimeline timeline={message.timeline} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                {displayTimeline && displayTimeline.length > 0 ? (
+                    <>
+                        <AgentTimeline timeline={displayTimeline} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                        {message.stopped && (
+                            <div className="mt-1 mb-2 px-3 py-2 rounded-lg text-xs flex items-center gap-2"
+                                 style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
+                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Response was interrupted (connection lost or stopped) before it finished.
+                            </div>
+                        )}
+                    </>
                 ) : (
                     // Legacy fallback for messages saved before the timeline field
                     // existed: grouped-by-type sections, same as before.
