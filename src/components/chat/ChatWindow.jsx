@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import { Message } from './Message';
 
-export const ChatWindow = ({ messages, loading, onOpenArtifact }) => {
+const ChatWindowComponent = ({ messages, loading, onOpenArtifact }) => {
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -48,3 +48,5 @@ export const ChatWindow = ({ messages, loading, onOpenArtifact }) => {
         </div>
     );
 };
+
+export const ChatWindow = memo(ChatWindowComponent);

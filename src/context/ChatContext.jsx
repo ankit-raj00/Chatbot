@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { API_BASE_URL } from '../config';
 import { useAuth } from './AuthContext';
 
@@ -84,7 +84,14 @@ export const ChatProvider = ({ children }) => {
         }
     }, [user]);
 
-    const loadConversations = async () => {
+    // useCallback below: `messages` lives in this context and changes on every
+    // streamed token, so ChatProvider re-renders on every token regardless —
+    // but without stable identities, every function here (and the `value`
+    // object itself) would ALSO get a new reference on every one of those
+    // re-renders, which cascades into every consumer's memoized children
+    // (e.g. ConversationSidebar) losing their React.memo benefit during a
+    // stream even though none of THEIR actual props changed.
+    const loadConversations = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/conversations`, {
                 credentials: 'include'
@@ -101,18 +108,18 @@ export const ChatProvider = ({ children }) => {
         } catch (error) {
             console.error('Failed to load conversations:', error);
         }
-    };
+    }, []);
 
 
-    const addMessage = (message) => {
+    const addMessage = useCallback((message) => {
         setMessages((prev) => [...prev, message]);
-    };
+    }, []);
 
-    const clearMessages = () => {
+    const clearMessages = useCallback(() => {
         setMessages([]);
-    };
+    }, []);
 
-    const deleteConversation = async (conversationId) => {
+    const deleteConversation = useCallback(async (conversationId) => {
         console.log('Deleting conversation:', conversationId);
         try {
             const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
@@ -124,10 +131,13 @@ export const ChatProvider = ({ children }) => {
                 // Remove from local state
                 setConversations(prev => prev.filter(c => c.id !== conversationId));
                 // Clear current if deleted
-                if (currentConversation?.id === conversationId) {
-                    setCurrentConversation(null);
-                    setMessages([]);
-                }
+                setCurrentConversation(prevConv => {
+                    if (prevConv?.id === conversationId) {
+                        setMessages([]);
+                        return null;
+                    }
+                    return prevConv;
+                });
                 console.log('Conversation deleted successfully');
             } else {
                 const errorData = await response.text();
@@ -136,9 +146,9 @@ export const ChatProvider = ({ children }) => {
         } catch (error) {
             console.error('Failed to delete conversation:', error);
         }
-    };
+    }, []);
 
-    const toggleMcpServer = (server) => {
+    const toggleMcpServer = useCallback((server) => {
         if (!server) {
             setSelectedMcpServers([]);
             return;
@@ -154,9 +164,9 @@ export const ChatProvider = ({ children }) => {
                 return [...prev, server];
             }
         });
-    };
+    }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         currentConversation,
         setCurrentConversation,
         messages,
@@ -172,7 +182,8 @@ export const ChatProvider = ({ children }) => {
         setSelectedModel,
         selectedTools,
         setSelectedTools,
-    };
+    }), [currentConversation, messages, addMessage, clearMessages, conversations,
+        deleteConversation, selectedMcpServers, toggleMcpServer, selectedModel, selectedTools]);
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };

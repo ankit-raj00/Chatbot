@@ -1,6 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 
-export const MessageInput = ({
+// Memoized: without this, every ChatPage re-render (which happens on every
+// streamed token during generation) re-rendered the input box too, even
+// though none of its own props changed during a stream.
+const MessageInputComponent = ({
     onSendMessage,
     disabled,
     isGenerating = false,
@@ -169,3 +172,5 @@ export const MessageInput = ({
         </div>
     );
 };
+
+export const MessageInput = memo(MessageInputComponent);

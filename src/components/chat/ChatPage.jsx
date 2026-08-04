@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,11 +26,14 @@ export const ChatPage = () => {
 
     // Cancel an in-progress generation: abort the fetch (server detects the
     // disconnect and cancels the agent run) and mark the message as stopped.
-    const handleStopGeneration = () => {
+    // useCallback: passed as a prop to MessageInput — without a stable
+    // identity it'd force MessageInput to re-render on every ChatPage render
+    // (including every streamed token), same issue as onOpenArtifact below.
+    const handleStopGeneration = useCallback(() => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-    };
+    }, []);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -98,15 +101,95 @@ export const ChatPage = () => {
         }
     };
 
-    const handleSelectConversation = (conversation) => {
+    const handleSelectConversation = useCallback((conversation) => {
         navigate(`/chat/${conversation.id}`);
-    };
+    }, [navigate]);
 
-    const handleNewConversation = () => {
+    const handleNewConversation = useCallback(() => {
         navigate('/chat');
-    };
+    }, [navigate]);
 
-    const handleSendMessage = async (message) => {
+    // Appends to a chronologically-ordered timeline (narration text interleaved
+    // with tool calls/skills/artifacts in the order they actually happened) —
+    // mirrors services/chat_service.py's server-side timeline builder exactly,
+    // so the live view and a reloaded conversation render identically.
+    // useCallback: pure function of its arguments, stable identity so
+    // handleStreamEvent (which closes over it) can also stay stable.
+    const appendTimelineEvent = useCallback((timeline, event) => {
+        const tl = [...timeline];
+        if (event.type === 'text') {
+            const last = tl[tl.length - 1];
+            if (last && last.type === 'text') {
+                tl[tl.length - 1] = { ...last, content: last.content + event.content };
+            } else {
+                tl.push({ type: 'text', content: event.content });
+            }
+        } else if (event.type === 'tool_call') {
+            tl.push({ type: 'tool', ...event.data, status: 'running' });
+        } else if (event.type === 'tool_output') {
+            for (let i = tl.length - 1; i >= 0; i--) {
+                if (tl[i].type === 'tool' && tl[i].name === event.data.name && tl[i].status === 'running') {
+                    tl[i] = { ...tl[i], ...event.data, status: 'completed' };
+                    break;
+                }
+            }
+        } else if (event.type === 'skill_used') {
+            tl.push({ type: 'skill', ...event.data });
+        } else if (event.type === 'artifact_created') {
+            tl.push({ type: 'artifact', ...event.data });
+        } else if (event.type === 'files_created') {
+            tl.push({ type: 'files_created', files: event.data });
+        } else if (event.type === 'exec_output') {
+            for (let i = tl.length - 1; i >= 0; i--) {
+                if (tl[i].type === 'tool' && tl[i].status === 'running' && tl[i].name === event.data.tool) {
+                    tl[i] = { ...tl[i], exec_output: [...(tl[i].exec_output || []), event.data] };
+                    break;
+                }
+            }
+        }
+        return tl;
+    }, []);
+
+    const handleStreamEvent = useCallback((event) => {
+        // NOTE: deliberately NOT wrapped in flushSync. This used to force a
+        // synchronous, unbatched, full-tree re-render on EVERY single event —
+        // fine for occasional text chunks, but exec_output (run_python/
+        // run_shell streaming stdout) can fire hundreds or thousands of times
+        // in a fast burst (e.g. a script iterating many files). flushSync'ing
+        // every one of those hammered the main thread with back-to-back
+        // blocking renders and froze the whole tab, not just this panel's
+        // scrolling (confirmed live). Plain setState lets React 18's
+        // automatic batching coalesce a rapid burst into far fewer renders,
+        // which is what we actually want here — still feels live, just
+        // doesn't block the browser.
+        setMessages((prev) => {
+            const updated = [...prev];
+            const lastIndex = updated.length - 1;
+            const lastMsg = { ...updated[lastIndex] };
+            if (lastMsg.role === 'assistant') {
+                lastMsg.timeline = appendTimelineEvent(lastMsg.timeline || [], event);
+
+                // Keep the legacy grouped fields in sync too — some other
+                // code (e.g. RightPanel openers) still reads message.content
+                // directly for things like copy-to-clipboard of the final text.
+                if (event.type === 'text') {
+                    lastMsg.content += event.content;
+                } else if (event.type === 'files_created') {
+                    lastMsg.files_created = [...(lastMsg.files_created || []), ...event.data];
+                }
+
+                updated[lastIndex] = lastMsg;
+            }
+            return updated;
+        });
+    }, [appendTimelineEvent, setMessages]);
+
+    // useCallback: passed to MessageInput/ChatWindow — its dependency list
+    // deliberately excludes `messages`, so this identity stays stable across
+    // an entire streaming burst (every token would otherwise force
+    // MessageInput and every memoized Message to re-render, defeating
+    // React.memo on both).
+    const handleSendMessage = useCallback(async (message) => {
         const userMessage = {
             role: 'user',
             content: message,
@@ -203,90 +286,24 @@ export const ChatPage = () => {
             setLoading(false);
             abortControllerRef.current = null;
         }
-    };
+    }, [uploadedImages, selectedMcpServers, selectedTools, isRagEnabled, currentConversation,
+        contextFiles, selectedModel, navigate, handleStreamEvent, setMessages]);
 
-    // Appends to a chronologically-ordered timeline (narration text interleaved
-    // with tool calls/skills/artifacts in the order they actually happened) —
-    // mirrors services/chat_service.py's server-side timeline builder exactly,
-    // so the live view and a reloaded conversation render identically.
-    const appendTimelineEvent = (timeline, event) => {
-        const tl = [...timeline];
-        if (event.type === 'text') {
-            const last = tl[tl.length - 1];
-            if (last && last.type === 'text') {
-                tl[tl.length - 1] = { ...last, content: last.content + event.content };
-            } else {
-                tl.push({ type: 'text', content: event.content });
-            }
-        } else if (event.type === 'tool_call') {
-            tl.push({ type: 'tool', ...event.data, status: 'running' });
-        } else if (event.type === 'tool_output') {
-            for (let i = tl.length - 1; i >= 0; i--) {
-                if (tl[i].type === 'tool' && tl[i].name === event.data.name && tl[i].status === 'running') {
-                    tl[i] = { ...tl[i], ...event.data, status: 'completed' };
-                    break;
-                }
-            }
-        } else if (event.type === 'skill_used') {
-            tl.push({ type: 'skill', ...event.data });
-        } else if (event.type === 'artifact_created') {
-            tl.push({ type: 'artifact', ...event.data });
-        } else if (event.type === 'files_created') {
-            tl.push({ type: 'files_created', files: event.data });
-        } else if (event.type === 'exec_output') {
-            for (let i = tl.length - 1; i >= 0; i--) {
-                if (tl[i].type === 'tool' && tl[i].status === 'running' && tl[i].name === event.data.tool) {
-                    tl[i] = { ...tl[i], exec_output: [...(tl[i].exec_output || []), event.data] };
-                    break;
-                }
-            }
-        }
-        return tl;
-    };
-
-    const handleStreamEvent = (event) => {
-        // NOTE: deliberately NOT wrapped in flushSync. This used to force a
-        // synchronous, unbatched, full-tree re-render on EVERY single event —
-        // fine for occasional text chunks, but exec_output (run_python/
-        // run_shell streaming stdout) can fire hundreds or thousands of times
-        // in a fast burst (e.g. a script iterating many files). flushSync'ing
-        // every one of those hammered the main thread with back-to-back
-        // blocking renders and froze the whole tab, not just this panel's
-        // scrolling (confirmed live). Plain setState lets React 18's
-        // automatic batching coalesce a rapid burst into far fewer renders,
-        // which is what we actually want here — still feels live, just
-        // doesn't block the browser.
-        setMessages((prev) => {
-            const updated = [...prev];
-            const lastIndex = updated.length - 1;
-            const lastMsg = { ...updated[lastIndex] };
-            if (lastMsg.role === 'assistant') {
-                lastMsg.timeline = appendTimelineEvent(lastMsg.timeline || [], event);
-
-                // Keep the legacy grouped fields in sync too — some other
-                // code (e.g. RightPanel openers) still reads message.content
-                // directly for things like copy-to-clipboard of the final text.
-                if (event.type === 'text') {
-                    lastMsg.content += event.content;
-                } else if (event.type === 'files_created') {
-                    lastMsg.files_created = [...(lastMsg.files_created || []), ...event.data];
-                }
-
-                updated[lastIndex] = lastMsg;
-            }
-            return updated;
-        });
-    };
-
-    const handleUploadComplete = (result) => {
+    const handleUploadComplete = useCallback((result) => {
         console.log("File indexed:", result);
         setFileListVersion(prev => prev + 1); // Refresh user's file list
-    };
+    }, []);
 
-    const handleOpenArtifact = (content) => {
+    // useCallback: passed to ChatWindow -> every Message — this was the
+    // actual bug that silently defeated Message.jsx's React.memo. A new
+    // inline function here every render meant every Message's shallow prop
+    // comparison always saw "onOpenArtifact changed", so the WHOLE message
+    // list still re-rendered on every streamed token even after memoizing
+    // Message itself.
+    const handleOpenArtifact = useCallback((content) => {
         setRightPanelContent(content);
         setIsRightPanelOpen(true);
-    };
+    }, []);
 
     return (
         <div className="h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>

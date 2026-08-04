@@ -1,4 +1,9 @@
-export const ConversationSidebar = ({
+import { memo } from 'react';
+
+// Memoized: sidebar content doesn't need to reflect the actively-streaming
+// message, so it should skip the re-render storm during generation as long
+// as its own props (conversations, selection, stable callbacks) don't change.
+const ConversationSidebarComponent = ({
     conversations,
     currentConversationId,
     onSelectConversation,
@@ -60,3 +65,5 @@ export const ConversationSidebar = ({
         </div>
     );
 };
+
+export const ConversationSidebar = memo(ConversationSidebarComponent);
