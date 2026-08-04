@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '../../context/ThemeContext';
@@ -362,7 +365,8 @@ const TimelineNode = ({ type, done, last, children }) => (
 // Shared markdown renderer used for both narration segments and the final answer.
 const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
     <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
             code({ node, inline, className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '');
@@ -576,7 +580,7 @@ const AgentTimeline = ({ timeline, isDark, onOpenArtifact }) => {
                     if (!group.entry.content?.trim()) return null;
                     return (
                         <TimelineNode key={idx} type="text" last={last}>
-                            <div className="prose prose-sm max-w-none pt-0.5" style={{ color: 'var(--text-primary)' }}>
+                            <div className="prose prose-sm max-w-none pt-0.5 dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
                                 <MarkdownContent content={group.entry.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
                             </div>
                         </TimelineNode>
@@ -801,7 +805,7 @@ const MessageComponent = ({ message, onOpenArtifact }) => {
                     this only renders for: user messages, legacy messages without a
                     timeline, and the "Working..." placeholder before any event arrives. */}
                 {!(message.timeline && message.timeline.length > 0) && (
-                    <div className="prose prose-sm max-w-none" style={{ color: 'var(--text-primary)' }}>
+                    <div className="prose prose-sm max-w-none dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
                         {message.content ? (
                             <MarkdownContent content={message.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
                         ) : (

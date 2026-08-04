@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '../../context/ThemeContext';
@@ -256,9 +259,10 @@ export const RightPanel = ({ content, onClose }) => {
                     <DownloadPrompt title={title} url={url} />
                 ) : isMd ? (
                     /* Rendered Markdown */
-                    <div className="flex-1 overflow-y-auto p-5 custom-scrollbar prose prose-sm max-w-none" style={{ color: 'var(--text-primary)' }}>
+                    <div className="flex-1 overflow-y-auto p-5 custom-scrollbar prose prose-sm max-w-none dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
                             components={{
                                 code({ node, inline, className, children, ...props }) {
                                     const match = /language-(\w+)/.exec(className || '');
