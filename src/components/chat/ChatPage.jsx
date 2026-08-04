@@ -407,49 +407,89 @@ export const ChatPage = () => {
         setIsRightPanelOpen(true);
     }, []);
 
+    // useCallback: all three are passed into the memoized MessageInput, which
+    // now owns the inline model/tools/RAG controls. Inline arrows here would
+    // re-render the composer on every streamed token, exactly the bug the
+    // memo wrapping exists to prevent.
+    const handleToggleRag = useCallback(() => setIsRagEnabled(prev => !prev), []);
+    const handleOpenKnowledgeUpload = useCallback(() => setIsUploadModalOpen(true), []);
+    const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+
+    const conversationTitle = currentConversation?.title || 'New chat';
+
     return (
         <div className="h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
-            {/* Sidebar */}
+            {/* ───────── Sidebar ───────── */}
             <div
-                className={`${isSidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 transition-all duration-200 overflow-hidden`}
+                className={`${isSidebarOpen ? 'w-[268px]' : 'w-0'} flex-shrink-0 transition-all duration-200 overflow-hidden`}
                 style={{ backgroundColor: 'var(--bg-sidebar)' }}
             >
-                <div className="w-64 h-full flex flex-col border-r" style={{ borderColor: 'var(--border-color)' }}>
-                    {/* Sidebar Header */}
-                    <div className="p-3 flex items-center justify-between">
+                <div className="w-[268px] h-full flex flex-col border-r" style={{ borderColor: 'var(--border-color)' }}>
+
+                    {/* Brand + rail actions */}
+                    <div className="px-3 pt-3.5 pb-2">
+                        <div className="flex items-center justify-between px-1 pb-3.5">
+                            <div className="flex items-center gap-2.5">
+                                <div
+                                    className="w-6 h-6 rounded-[7px] grid place-items-center flex-none"
+                                    style={{
+                                        background: 'linear-gradient(145deg, var(--accent), var(--violet))',
+                                        color: 'var(--accent-ink)'
+                                    }}
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M4 17l6-6-6-6M12 19h8" />
+                                    </svg>
+                                </div>
+                                <span className="text-[14.5px] font-semibold tracking-[-0.02em]" style={{ color: 'var(--text-primary)' }}>
+                                    AgentX
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-0.5">
+                                <button
+                                    onClick={() => navigate('/rag-test')}
+                                    className="w-7 h-7 rounded-lg grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                    title="Test retrieval"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M9 3h6M10 3v6.5L5.5 18a2 2 0 001.7 3h9.6a2 2 0 001.7-3L14 9.5V3M7.5 15h9" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="w-7 h-7 rounded-lg grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                    title="Collapse sidebar"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                                        <path d="M9.5 4v16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
                         <button
                             onClick={handleNewConversation}
-                            className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[11px] border text-[13.5px] font-medium transition-all duration-150 hover:-translate-y-px"
                             style={{
+                                backgroundColor: 'var(--surface)',
                                 borderColor: 'var(--border-color)',
-                                color: 'var(--text-primary)'
+                                color: 'var(--text-primary)',
+                                boxShadow: 'var(--shadow-1)'
                             }}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" viewBox="0 0 24 24">
+                                <path d="M12 5v14M5 12h14" />
                             </svg>
                             New chat
-                        </button>
-                        <button
-                            onClick={() => navigate('/rag-test')}
-                            className="bg-purple-900/30 hover:bg-purple-900/50 text-purple-200 ml-2 px-3 py-2.5 rounded-lg border border-purple-800 text-sm font-medium transition-colors"
-                            title="Test Retrieval"
-                        >
-                            🔍
-                        </button>
-                        <button
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="ml-2 p-2 rounded-lg transition-colors"
-                            style={{ color: 'var(--text-secondary)' }}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                            </svg>
                         </button>
                     </div>
 
                     {/* Conversations */}
-                    <div className="flex-1 overflow-y-auto px-2">
+                    <div className="flex-1 overflow-y-auto px-3 min-h-0">
                         <ConversationSidebar
                             conversations={conversations}
                             currentConversationId={currentConversation?.id}
@@ -458,182 +498,193 @@ export const ChatPage = () => {
                         />
                     </div>
 
-                    {/* RAG Context Selector */}
-                    <div className="border-t" style={{ borderColor: 'var(--border-color)' }}>
-                        <div className="p-3 flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={isRagEnabled}
-                                    onChange={(e) => setIsRagEnabled(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-600 text-[var(--accent)] focus:ring-[var(--accent)] bg-transparent"
-                                />
-                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                    Enable Agentic RAG
-                                </span>
-                            </label>
-                            <button
-                                onClick={() => setIsUploadModalOpen(true)}
-                                className="p-1.5 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
-                                title="Upload Knowledge Document"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    {/* Knowledge base */}
+                    <div className="px-3 py-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                        <div
+                            className="rounded-[12px] border px-3 py-2.5"
+                            style={{
+                                backgroundColor: 'var(--surface)',
+                                borderColor: 'var(--border-color)',
+                                boxShadow: 'var(--shadow-1)'
+                            }}
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-3.5 h-3.5 flex-none" style={{ color: isRagEnabled ? 'var(--accent)' : 'var(--text-tertiary)' }}
+                                    fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                    <path d="M4 5.5A2.5 2.5 0 016.5 3H19v18H6.5A2.5 2.5 0 014 18.5zM8 3v18" />
                                 </svg>
-                            </button>
+                                <span className="text-[12.5px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                                    Knowledge base
+                                </span>
+                                <button
+                                    onClick={handleOpenKnowledgeUpload}
+                                    className="ml-auto w-6 h-6 rounded-md grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
+                                    style={{ color: 'var(--text-secondary)' }}
+                                    title="Upload a document"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M12 20V8m0 0l-4 4m4-4l4 4M4 5h16" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {isRagEnabled ? (
+                                <div className="mt-1.5 -mx-1">
+                                    <ContextFileSelector
+                                        key={fileListVersion} // forces re-mount to fetch latest files when bumped
+                                        onSelectionChange={setContextFiles}
+                                    />
+                                </div>
+                            ) : (
+                                <p className="mt-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>
+                                    Turn on <span style={{ color: 'var(--text-secondary)' }}>Agentic RAG</span> in the composer to pick context files.
+                                </p>
+                            )}
                         </div>
-                        
-                        {isRagEnabled && (
-                            <ContextFileSelector
-                                key={fileListVersion} // forces re-mount to fetch latest files when bumped
-                                onSelectionChange={setContextFiles}
-                            />
-                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Main Chat Area */}
+            {/* ───────── Main ───────── */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-14 flex items-center justify-between px-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                    <div className="flex items-center gap-3">
-                        {!isSidebarOpen && (
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="p-2 rounded-lg transition-colors"
-                                style={{ color: 'var(--text-secondary)' }}
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                                </svg>
-                            </button>
-                        )}
-                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>AgentX</span>
-
-                        {/* RAG Toggle */}
-                        <div className="ml-4 flex items-center gap-2">
-                            <button
-                                onClick={() => setIsRagEnabled(!isRagEnabled)}
-                                className={`
-                                    px-3 py-1 rounded-full text-xs font-medium transition-all
-                                    ${isRagEnabled
-                                        ? 'bg-[var(--accent)] text-white ring-2 ring-[var(--accent)] ring-offset-2'
-                                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                                    }
-                                `}
-                            >
-                                {isRagEnabled ? '🧠 RAG Enabled' : 'Enable RAG'}
-                            </button>
-                            {isRagEnabled && contextFiles.length > 0 && (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                                    {contextFiles.length}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {/* Theme Toggle */}
+                <header
+                    className="h-[53px] flex-none flex items-center gap-3 px-4 border-b relative z-20"
+                    style={{
+                        borderColor: 'var(--border-color)',
+                        backgroundColor: 'var(--glass)',
+                        backdropFilter: 'blur(14px) saturate(140%)'
+                    }}
+                >
+                    {!isSidebarOpen && (
                         <button
-                            onClick={toggleTheme}
-                            className="p-2 rounded-lg transition-colors"
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="w-8 h-8 rounded-lg grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
                             style={{ color: 'var(--text-secondary)' }}
-                            title={isDark ? 'Light mode' : 'Dark mode'}
+                            title="Open sidebar"
                         >
-                            {isDark ? (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                            ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                </svg>
-                            )}
-                        </button>
-
-                        {/* Settings */}
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="p-2 rounded-lg transition-colors"
-                            style={{ color: 'var(--text-secondary)' }}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="16" rx="2.5" />
+                                <path d="M9.5 4v16" />
                             </svg>
                         </button>
+                    )}
 
-                        {/* Profile */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-                                style={{
-                                    backgroundColor: 'var(--accent)',
-                                    color: 'white'
-                                }}
-                            >
-                                {user?.name?.charAt(0).toUpperCase() || 'U'}
-                            </button>
+                    <span className="text-[13.5px] font-medium tracking-[-0.015em] truncate min-w-0" style={{ color: 'var(--text-primary)' }}>
+                        {conversationTitle}
+                    </span>
 
-                            {isProfileOpen && (
-                                <>
-                                    <div
-                                        className="fixed inset-0 z-40"
-                                        onClick={() => setIsProfileOpen(false)}
-                                    />
-                                    <div
-                                        className="absolute right-0 top-full mt-2 w-56 rounded-lg border shadow-lg z-50 py-1"
-                                        style={{
-                                            backgroundColor: 'var(--bg-primary)',
-                                            borderColor: 'var(--border-color)'
-                                        }}
-                                    >
-                                        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
-                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                                {user?.name || 'User'}
-                                            </p>
-                                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                                                {user?.email || ''}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setIsProfileOpen(false);
-                                                navigate('/profile');
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--hover-bg)]"
-                                            style={{ color: 'var(--text-primary)' }}
-                                        >
-                                            View Profile
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                await logout();
-                                                navigate('/login');
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-sm transition-colors hover:bg-[var(--hover-bg)]"
-                                            style={{ color: 'var(--text-primary)' }}
-                                        >
-                                            Log out
-                                        </button>
+                    <span
+                        className="hidden sm:flex items-center gap-1.5 text-[11.5px] rounded-full border px-2.5 py-[3px] flex-none"
+                        style={{
+                            borderColor: 'var(--border-color)',
+                            backgroundColor: 'var(--surface)',
+                            color: 'var(--text-secondary)'
+                        }}
+                    >
+                        <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: 'var(--accent)', boxShadow: '0 0 0 3px var(--accent-soft)' }}
+                        />
+                        Sandbox ready
+                    </span>
+
+                    <div className="flex-1" />
+
+                    <button
+                        onClick={toggleTheme}
+                        className="w-8 h-8 rounded-lg grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
+                        style={{ color: 'var(--text-secondary)' }}
+                        title={isDark ? 'Light mode' : 'Dark mode'}
+                    >
+                        {isDark ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                            </svg>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+                            </svg>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={handleOpenSettings}
+                        className="w-8 h-8 rounded-lg grid place-items-center transition-colors hover:bg-[var(--hover-bg)]"
+                        style={{ color: 'var(--text-secondary)' }}
+                        title="Settings"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 003.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z" />
+                        </svg>
+                    </button>
+
+                    <div className="w-px h-5 mx-0.5" style={{ backgroundColor: 'var(--border-color)' }} />
+
+                    {/* Profile */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="w-8 h-8 rounded-[10px] flex items-center justify-center text-[12px] font-semibold transition-transform active:scale-95"
+                            style={{
+                                background: 'linear-gradient(150deg, #7c6cf0, #4f46e5)',
+                                color: 'white'
+                            }}
+                        >
+                            {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </button>
+
+                        {isProfileOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                                <div
+                                    className="ax-pop absolute right-0 top-full mt-2 w-60 z-50 p-1.5"
+                                >
+                                    <div className="px-2.5 py-2 mb-1 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                        <p className="text-[13px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                                            {user?.name || 'User'}
+                                        </p>
+                                        <p className="text-[11.5px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+                                            {user?.email || ''}
+                                        </p>
                                     </div>
-                                </>
-                            )}
-                        </div>
+                                    <button
+                                        onClick={() => {
+                                            setIsProfileOpen(false);
+                                            navigate('/profile');
+                                        }}
+                                        className="ax-pop-item text-[13px]"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
+                                        View profile
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            await logout();
+                                            navigate('/login');
+                                        }}
+                                        className="ax-pop-item text-[13px]"
+                                        style={{ color: 'var(--text-primary)' }}
+                                    >
+                                        Log out
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </header>
 
                 {/* Chat Content */}
                 <div className="flex-1 overflow-hidden flex flex-col">
-                    <ChatWindow 
-                        messages={messages} 
-                        loading={loading} 
+                    <ChatWindow
+                        messages={messages}
+                        loading={loading}
                         onOpenArtifact={handleOpenArtifact}
                     />
 
-                    <div className="p-4">
+                    <div className="flex-none px-4 pb-4 pt-1">
                         <MessageInput
                             onSendMessage={handleSendMessage}
                             disabled={loading}
@@ -643,6 +694,16 @@ export const ChatPage = () => {
                             onImagesChange={setUploadedImages}
                             selectedModel={selectedModel}
                             onModelChange={setSelectedModel}
+                            mcpServers={mcpServers}
+                            selectedMcpServers={selectedMcpServers}
+                            onToggleMcpServer={toggleMcpServer}
+                            selectedTools={selectedTools}
+                            onToolsChange={setSelectedTools}
+                            isRagEnabled={isRagEnabled}
+                            onToggleRag={handleToggleRag}
+                            contextFileCount={contextFiles.length}
+                            onOpenKnowledgeUpload={handleOpenKnowledgeUpload}
+                            onOpenSettings={handleOpenSettings}
                         />
                     </div>
                 </div>
@@ -650,13 +711,15 @@ export const ChatPage = () => {
 
             {/* Right Panel */}
             {isRightPanelOpen && (
-                <RightPanel 
-                    content={rightPanelContent} 
-                    onClose={() => setIsRightPanelOpen(false)} 
+                <RightPanel
+                    content={rightPanelContent}
+                    onClose={() => setIsRightPanelOpen(false)}
                 />
             )}
 
-            {/* Settings Panel (Slidable) */}
+            {/* Settings Panel (Slidable) — kept as the deep-settings escape hatch;
+                the per-turn controls (model, tools, MCP, RAG) now live inline in
+                the composer. */}
             <SettingsPanel
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}

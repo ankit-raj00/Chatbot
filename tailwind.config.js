@@ -39,8 +39,9 @@ export default {
                 },
             },
             fontFamily: {
-                sans: ['Söhne', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                mono: ['Söhne Mono', 'Monaco', 'Consolas', 'monospace'],
+                sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+                mono: ['JetBrains Mono', 'ui-monospace', 'SF Mono', 'Menlo', 'Consolas', 'monospace'],
+                serif: ['Iowan Old Style', 'Palatino Linotype', 'Georgia', 'serif'],
             },
         },
     },
