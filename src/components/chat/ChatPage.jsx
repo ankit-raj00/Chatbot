@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -246,27 +245,36 @@ export const ChatPage = () => {
     };
 
     const handleStreamEvent = (event) => {
-        flushSync(() => {
-            setMessages((prev) => {
-                const updated = [...prev];
-                const lastIndex = updated.length - 1;
-                const lastMsg = { ...updated[lastIndex] };
-                if (lastMsg.role === 'assistant') {
-                    lastMsg.timeline = appendTimelineEvent(lastMsg.timeline || [], event);
+        // NOTE: deliberately NOT wrapped in flushSync. This used to force a
+        // synchronous, unbatched, full-tree re-render on EVERY single event —
+        // fine for occasional text chunks, but exec_output (run_python/
+        // run_shell streaming stdout) can fire hundreds or thousands of times
+        // in a fast burst (e.g. a script iterating many files). flushSync'ing
+        // every one of those hammered the main thread with back-to-back
+        // blocking renders and froze the whole tab, not just this panel's
+        // scrolling (confirmed live). Plain setState lets React 18's
+        // automatic batching coalesce a rapid burst into far fewer renders,
+        // which is what we actually want here — still feels live, just
+        // doesn't block the browser.
+        setMessages((prev) => {
+            const updated = [...prev];
+            const lastIndex = updated.length - 1;
+            const lastMsg = { ...updated[lastIndex] };
+            if (lastMsg.role === 'assistant') {
+                lastMsg.timeline = appendTimelineEvent(lastMsg.timeline || [], event);
 
-                    // Keep the legacy grouped fields in sync too — some other
-                    // code (e.g. RightPanel openers) still reads message.content
-                    // directly for things like copy-to-clipboard of the final text.
-                    if (event.type === 'text') {
-                        lastMsg.content += event.content;
-                    } else if (event.type === 'files_created') {
-                        lastMsg.files_created = [...(lastMsg.files_created || []), ...event.data];
-                    }
-
-                    updated[lastIndex] = lastMsg;
+                // Keep the legacy grouped fields in sync too — some other
+                // code (e.g. RightPanel openers) still reads message.content
+                // directly for things like copy-to-clipboard of the final text.
+                if (event.type === 'text') {
+                    lastMsg.content += event.content;
+                } else if (event.type === 'files_created') {
+                    lastMsg.files_created = [...(lastMsg.files_created || []), ...event.data];
                 }
-                return updated;
-            });
+
+                updated[lastIndex] = lastMsg;
+            }
+            return updated;
         });
     };
 

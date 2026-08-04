@@ -51,19 +51,41 @@ const FileCreatedStep = ({ file, onClick }) => {
     );
 };
 
+// Cap how many lines actually get mounted as DOM nodes. Without this, a
+// script that dumps thousands of lines (e.g. accidentally walking into
+// .venv/site-packages) makes React re-render an ever-growing list on EVERY
+// single streamed line — an O(n^2) cost as the array grows — which froze the
+// whole tab, not just this panel (confirmed live: a run_python step walking
+// third-party dependency internals locked up the entire page, not just
+// scrolling within the terminal).
+const _TERMINAL_MAX_LINES = 300;
+
 const LiveTerminal = ({ outputs }) => {
     const terminalRef = useRef(null);
+    // Only auto-scroll to bottom if the user was ALREADY at/near the bottom
+    // before this update — otherwise a rapid flood of new lines fights any
+    // manual scroll attempt by snapping back down after every single line.
+    const wasNearBottomRef = useRef(true);
+
+    const handleScroll = () => {
+        const el = terminalRef.current;
+        if (!el) return;
+        wasNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    };
 
     useEffect(() => {
-        if (terminalRef.current) {
+        if (terminalRef.current && wasNearBottomRef.current) {
             terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
         }
     }, [outputs]);
 
     if (!outputs || outputs.length === 0) return null;
 
+    const truncatedCount = Math.max(0, outputs.length - _TERMINAL_MAX_LINES);
+    const visible = truncatedCount > 0 ? outputs.slice(-_TERMINAL_MAX_LINES) : outputs;
+
     return (
-        <div 
+        <div
             className="mt-2 rounded overflow-hidden flex flex-col font-mono text-[11px] leading-snug"
             style={{ backgroundColor: '#1e1e1e', color: '#d4d4d4', border: '1px solid var(--border-color)' }}
         >
@@ -74,9 +96,19 @@ const LiveTerminal = ({ outputs }) => {
                     <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
                 </div>
                 <span className="ml-3 text-[#858585] font-sans text-[10px] uppercase tracking-wider">Terminal</span>
+                {outputs.length > _TERMINAL_MAX_LINES && (
+                    <span className="ml-auto mr-1 text-[#858585] font-sans text-[10px]">
+                        {outputs.length.toLocaleString()} lines
+                    </span>
+                )}
             </div>
-            <div ref={terminalRef} className="p-3 max-h-60 overflow-y-auto whitespace-pre-wrap">
-                {outputs.map((out, idx) => (
+            <div ref={terminalRef} onScroll={handleScroll} className="p-3 max-h-60 overflow-y-auto whitespace-pre-wrap">
+                {truncatedCount > 0 && (
+                    <div className="text-[#858585] italic pb-1 mb-1 border-b border-[#404040]">
+                        …{truncatedCount.toLocaleString()} earlier lines hidden (showing the most recent {_TERMINAL_MAX_LINES})
+                    </div>
+                )}
+                {visible.map((out, idx) => (
                     <div key={idx} style={{ color: out.stream === 'stderr' ? '#f14c4c' : 'inherit' }}>
                         {out.line}
                     </div>
