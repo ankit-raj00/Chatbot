@@ -14,6 +14,7 @@ import { MessageInput } from './MessageInput';
 import { SettingsPanel } from '../settings/SettingsPanel';
 import { ContextFileSelector } from './ContextFileSelector';
 import { DocumentUploadModal } from './DocumentUploadModal';
+import { IngestionStatusList } from './IngestionStatusList';
 
 export const ChatPage = () => {
     const { conversations, currentConversation, setCurrentConversation, messages, setMessages, clearMessages, selectedMcpServers, toggleMcpServer, selectedModel, setSelectedModel, selectedTools, setSelectedTools, deleteConversation } = useChat();
@@ -430,13 +431,26 @@ export const ChatPage = () => {
     const handleToggleRag = useCallback(() => setIsRagEnabled(prev => !prev), []);
     const handleOpenKnowledgeUpload = useCallback(() => setIsUploadModalOpen(true), []);
     const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+    // Passed to IngestionStatusList — fires once per job the first time it's
+    // observed as complete, so the file selector picks up the newly-indexed
+    // file without the user needing to do anything (e.g. toggling RAG off/on).
+    const handleIngestionJobCompleted = useCallback(() => setFileListVersion(v => v + 1), []);
 
     // Fires when the upload modal is dismissed mid-upload (see DocumentUploadModal's
     // handleCancel) — shows a brief notice above the Knowledge base card, then
     // clears itself so it doesn't linger indefinitely.
+    // NOTE: this only stops the modal from watching — there's no backend
+    // cancellation wired up for the ingestion pipeline, so the job keeps
+    // running server-side regardless. IngestionStatusList below will still
+    // show it progressing to Indexed/Failed; the wording here is
+    // deliberately honest about that instead of implying it actually stopped.
     const handleUploadCancelled = useCallback((filename) => {
-        setUploadNotice({ message: filename ? `Upload cancelled — ${filename}` : 'Upload cancelled' });
-        setTimeout(() => setUploadNotice(null), 4000);
+        setUploadNotice({
+            message: filename
+                ? `Closed — ${filename} is still processing in the background`
+                : 'Closed — upload still processing in the background',
+        });
+        setTimeout(() => setUploadNotice(null), 5000);
     }, []);
 
     const conversationTitle = currentConversation?.title || 'New chat';
@@ -524,6 +538,7 @@ export const ChatPage = () => {
 
                     {/* Knowledge base */}
                     <div className="px-3 py-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                        <IngestionStatusList onJobCompleted={handleIngestionJobCompleted} />
                         {uploadNotice && (
                             <div
                                 className="mb-2 flex items-center gap-2 rounded-[10px] border px-2.5 py-2 text-[11.5px]"

@@ -5,7 +5,13 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCance
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [status, setStatus] = useState('');
-    const [progress, setProgress] = useState(0);
+    // Real detail from the backend (services/ingestion_job_service.py sets
+    // this at each stage, e.g. "Parsing document with LlamaParse...") —
+    // there's no real percentage-complete available server-side, so this
+    // replaces what used to be a fake incrementing progress bar with an
+    // honest indeterminate indicator instead.
+    const [progressMessage, setProgressMessage] = useState('');
+    const [chunksCount, setChunksCount] = useState(null);
     const [error, setError] = useState(null);
     // Recursive setTimeout polling (pollJobStatus below) doesn't stop itself
     // just because the modal closed — this flag is checked at the top of
@@ -19,7 +25,8 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCance
             setFile(null);
             setUploading(false);
             setStatus('');
-            setProgress(0);
+            setProgressMessage('');
+            setChunksCount(null);
             setError(null);
             cancelledRef.current = false;
         }
@@ -52,21 +59,19 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCance
             const data = await ragService.pollIngestionJob(jobId);
             if (cancelledRef.current) return;
             setStatus(data.status);
+            setProgressMessage(data.progress_message || '');
 
             if (data.status === 'completed' || data.status === 'complete') {
-                setProgress(100);
+                setChunksCount(typeof data.chunks_count === 'number' ? data.chunks_count : null);
                 setTimeout(() => {
                     onUploadComplete();
                     onClose();
                 }, 1000);
             } else if (data.status === 'failed') {
-                setError(data.error || 'Ingestion failed');
+                setError(data.error || data.progress_message || 'Ingestion failed');
                 setUploading(false);
-            } else if (data.status === 'processing' || data.status === 'embedding') {
-                setProgress(prev => Math.min(prev + 10, 90)); // Fake progress up to 90%
-                setTimeout(() => pollJobStatus(jobId), 2000); // Poll every 2 seconds
             } else {
-                // 'pending' or 'queued'
+                // queued / parsing / embedding — all still in progress.
                 setTimeout(() => pollJobStatus(jobId), 2000);
             }
         } catch (err) {
@@ -84,19 +89,18 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCance
 
         setUploading(true);
         setStatus('uploading');
-        setProgress(10);
+        setProgressMessage('Uploading...');
         setError(null);
 
         try {
             const data = await ragService.uploadFile(file);
             if (data.job_id) {
                 setStatus('queued');
-                setProgress(20);
+                setProgressMessage('Queued for processing');
                 pollJobStatus(data.job_id);
             } else {
                 // Synchronous processing fallback (if backend changes)
                 setStatus('completed');
-                setProgress(100);
                 setTimeout(() => {
                     onUploadComplete();
                     onClose();
@@ -166,15 +170,21 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCance
                             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
 
                             <div>
-                                <p className="text-white font-medium capitalize">{status}...</p>
+                                {/* Real detail from the backend job (e.g. "Parsing document with
+                                    LlamaParse...") instead of a generic capitalized status word —
+                                    there's no true percentage available, so no percentage is implied. */}
+                                <p className="text-white font-medium">
+                                    {status === 'complete' || status === 'completed'
+                                        ? `Indexed${typeof chunksCount === 'number' ? ` — ${chunksCount} chunk${chunksCount === 1 ? '' : 's'}` : ''}`
+                                        : (progressMessage || `${status}...`)}
+                                </p>
                                 <p className="text-sm text-gray-400 mt-1">This may take a minute for large files</p>
                             </div>
 
-                            <div className="w-full bg-gray-700 rounded-full h-2 mt-4 overflow-hidden">
-                                <div
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${progress}%` }}
-                                ></div>
+                            {/* Indeterminate — matches the same "we don't know exactly how far
+                                along this is" rail used elsewhere (composer's generating state). */}
+                            <div className="w-full h-1 rounded-full overflow-hidden bg-gray-700">
+                                <div className="ax-rail" />
                             </div>
 
                             <button

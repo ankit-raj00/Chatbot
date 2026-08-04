@@ -41,6 +41,24 @@ export const ragService = {
     },
 
     /**
+     * Lists this user's recent ingestion jobs (last 20, newest first),
+     * regardless of whether the upload modal that started them is still
+     * open — used for a persistent "what's happening with my uploads"
+     * status view. Unlike pollIngestionJob, doesn't require already
+     * knowing a job_id.
+     * @returns {Promise<Object>} - { jobs: [...] }
+     */
+    async listJobs() {
+        try {
+            const response = await api.get('/api/v1/ingest/jobs');
+            return response.data;
+        } catch (error) {
+            console.error('List Jobs Error:', error);
+            return { jobs: [] };
+        }
+    },
+
+    /**
      * Sends a message to the Agentic RAG Chat.
      * @param {string} message - User query.
      * @param {Array<string>} selectedFileIds - Optional list of file UUIDs to filter by.
