@@ -1,6 +1,76 @@
 import api from './api';
 import { API_BASE_URL } from '../config';
 
+// Shared by sendMessageStream/sendMessageStreamMultimodal/resumeStream — all
+// three consume the identical SSE wire format (see backend services/chat_service.py's
+// turn_manager.publish() calls), so the parsing loop only needs to exist once.
+async function _consumeSSE(response, onChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullResponse = '';
+    let finalConversationId = null;
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                if (data.chunk) {
+                    fullResponse += data.chunk;
+                    onChunk({ type: 'text', content: data.chunk });
+                }
+                if (data.tool_call) {
+                    onChunk({ type: 'tool_call', data: data.tool_call });
+                }
+                if (data.tool_output) {
+                    onChunk({ type: 'tool_output', data: data.tool_output });
+                }
+                if (data.skill_used) {
+                    onChunk({ type: 'skill_used', data: data.skill_used });
+                }
+                if (data.artifact_created) {
+                    onChunk({ type: 'artifact_created', data: data.artifact_created });
+                }
+                if (data.files_created) {
+                    onChunk({ type: 'files_created', data: data.files_created });
+                }
+                if (data.exec_output) {
+                    onChunk({ type: 'exec_output', data: data.exec_output });
+                }
+                // Turn was cancelled server-side (stopGeneration, or a
+                // resumed-elsewhere turn that got stopped) — distinct from
+                // the client-side AbortError path (this tab's own fetch
+                // being aborted), which is handled by the caller's catch
+                // block instead. Both end up marking the message stopped.
+                if (data.stopped) {
+                    onChunk({ type: 'stopped' });
+                }
+
+                if (data.done) {
+                    finalConversationId = data.conversation_id;
+                }
+            }
+        }
+    }
+
+    return {
+        response: fullResponse,
+        conversation_id: finalConversationId,
+    };
+}
+
 export const chatService = {
     async sendMessageStream(message, conversationId = null, mcpServerIds = [], model = "antigravity/gemini-3.5-flash-medium", enabledTools = [], selectedFiles = [], onChunk, signal = undefined) {
         const response = await fetch(`${API_BASE_URL}/chat/stream`, {
@@ -20,61 +90,10 @@ export const chatService = {
             }),
         });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let fullResponse = '';
-        let finalConversationId = conversationId;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-
-                    if (data.chunk) {
-                        fullResponse += data.chunk;
-                        onChunk({ type: 'text', content: data.chunk });
-                    }
-                    if (data.tool_call) {
-                        onChunk({ type: 'tool_call', data: data.tool_call });
-                    }
-                    if (data.tool_output) {
-                        onChunk({ type: 'tool_output', data: data.tool_output });
-                    }
-                    if (data.skill_used) {
-                        onChunk({ type: 'skill_used', data: data.skill_used });
-                    }
-                    if (data.artifact_created) {
-                        onChunk({ type: 'artifact_created', data: data.artifact_created });
-                    }
-                    if (data.files_created) {
-                        onChunk({ type: 'files_created', data: data.files_created });
-                    }
-                    if (data.exec_output) {
-                        onChunk({ type: 'exec_output', data: data.exec_output });
-                    }
-
-                    if (data.done) {
-                        finalConversationId = data.conversation_id;
-                    }
-                }
-            }
-        }
-
+        const result = await _consumeSSE(response, onChunk);
         return {
-            response: fullResponse,
-            conversation_id: finalConversationId,
+            ...result,
+            conversation_id: result.conversation_id ?? conversationId,
         };
     },
 
@@ -108,62 +127,41 @@ export const chatService = {
             body: formData,
         });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let fullResponse = '';
-        let finalConversationId = conversationId;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-
-                    if (data.chunk) {
-                        fullResponse += data.chunk;
-                        onChunk({ type: 'text', content: data.chunk });
-                    }
-                    if (data.tool_call) {
-                        onChunk({ type: 'tool_call', data: data.tool_call });
-                    }
-                    if (data.tool_output) {
-                        onChunk({ type: 'tool_output', data: data.tool_output });
-                    }
-                    if (data.skill_used) {
-                        onChunk({ type: 'skill_used', data: data.skill_used });
-                    }
-                    if (data.artifact_created) {
-                        onChunk({ type: 'artifact_created', data: data.artifact_created });
-                    }
-                    if (data.files_created) {
-                        onChunk({ type: 'files_created', data: data.files_created });
-                    }
-                    if (data.exec_output) {
-                        onChunk({ type: 'exec_output', data: data.exec_output });
-                    }
-
-                    if (data.done) {
-                        finalConversationId = data.conversation_id;
-                    }
-                }
-            }
-        }
-
+        const result = await _consumeSSE(response, onChunk);
         return {
-            response: fullResponse,
-            conversation_id: finalConversationId,
+            ...result,
+            conversation_id: result.conversation_id ?? conversationId,
         };
+    },
+
+    // Reattach to an in-progress turn (e.g. the page was reloaded mid-generation)
+    // and keep streaming it live — same event shapes as sendMessageStream, just
+    // sourced from the backend's turn_manager replay+live-forward instead of
+    // driving the agent directly.
+    async resumeStream(conversationId, onChunk, signal = undefined) {
+        const response = await fetch(`${API_BASE_URL}/chat/${conversationId}/resume`, {
+            method: 'GET',
+            credentials: 'include',
+            signal,
+        });
+        return _consumeSSE(response, onChunk);
+    },
+
+    // Cheap check for whether this conversation has a turn in progress right
+    // now — call before resumeStream (e.g. on page load) rather than always
+    // opening a stream speculatively.
+    async checkActiveTurn(conversationId) {
+        const response = await api.get(`/chat/${conversationId}/active-turn`);
+        return response.data.active;
+    },
+
+    // Cancels the conversation's in-progress turn server-side. The caller
+    // should ALSO abort its own local fetch (if it's the tab that started
+    // the turn) for instant UI feedback — this call is what makes the stop
+    // durable regardless of which tab is watching.
+    async stopGeneration(conversationId) {
+        const response = await api.post(`/chat/${conversationId}/stop`);
+        return response.data.stopped;
     },
 
     async getConversations() {

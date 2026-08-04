@@ -24,8 +24,13 @@ export const ChatPage = () => {
     const [mcpServers, setMcpServers] = useState([]);
     const abortControllerRef = useRef(null);
 
-    // Cancel an in-progress generation: abort the fetch (server detects the
-    // disconnect and cancels the agent run) and mark the message as stopped.
+    // Cancel an in-progress generation. Two independent things happen: abort
+    // this tab's own fetch (instant local UI feedback — stops rendering
+    // incoming events right away) AND tell the backend to actually cancel
+    // the turn (chatService.stopGeneration) — necessary now that generation
+    // runs as a detached background task (see turn_manager on the backend)
+    // rather than being tied to this fetch; aborting the fetch alone no
+    // longer stops the agent, it just stops THIS tab from watching it.
     // useCallback: passed as a prop to MessageInput — without a stable
     // identity it'd force MessageInput to re-render on every ChatPage render
     // (including every streamed token), same issue as onOpenArtifact below.
@@ -33,7 +38,12 @@ export const ChatPage = () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
         }
-    }, []);
+        if (currentConversation?.id) {
+            chatService.stopGeneration(currentConversation.id).catch((err) => {
+                console.error('Failed to stop generation server-side:', err);
+            });
+        }
+    }, [currentConversation]);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -81,6 +91,77 @@ export const ChatPage = () => {
             setMessages([]);
         } finally {
             setLoading(false);
+        }
+
+        // The persisted history above never includes an in-progress turn
+        // (it's only saved once the turn finishes) — so a reload landing on
+        // a conversation whose generation is still running shows nothing
+        // for it unless we explicitly check and reattach.
+        try {
+            const active = await chatService.checkActiveTurn(id);
+            if (active) {
+                await resumeGeneration(id);
+            }
+        } catch (error) {
+            console.error('Failed to check/resume active turn:', error);
+        }
+    };
+
+    // Reattaches to a turn that's already running (see loadMessages above).
+    // Mirrors handleSendMessage's streaming plumbing but doesn't send
+    // anything new — it just appends a fresh "live" assistant message and
+    // feeds it from wherever the backend's turn_manager currently is,
+    // replaying everything already generated before continuing live.
+    const resumeGeneration = async (id) => {
+        setMessages((prev) => [...prev, {
+            role: 'assistant',
+            content: '',
+            timeline: [],
+            timestamp: new Date().toISOString(),
+            streaming: true,
+        }]);
+        setLoading(true);
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        try {
+            await chatService.resumeStream(id, (event) => handleStreamEvent(event), controller.signal);
+            setMessages((prev) => {
+                const updated = [...prev];
+                delete updated[updated.length - 1].streaming;
+                return updated;
+            });
+        } catch (error) {
+            const stopped = error?.name === 'AbortError';
+            // Narrow race: the turn finished between checkActiveTurn and this
+            // call landing — nothing to resume, but the real completed
+            // message is already persisted. Drop the empty placeholder and
+            // just re-fetch history instead of showing a scary error for
+            // something that actually succeeded.
+            if (error?.message === 'No active generation to resume.') {
+                setMessages((prev) => prev.slice(0, -1));
+                await loadMessages(id);
+                return;
+            }
+            if (!stopped) console.error('Failed to resume generation:', error);
+            setMessages((prev) => {
+                const updated = [...prev];
+                const lastMsg = updated[updated.length - 1];
+                if (lastMsg.role === 'assistant') {
+                    if (stopped) {
+                        lastMsg.stopped = true;
+                    } else {
+                        lastMsg.content = lastMsg.content || 'Sorry, I encountered an error. Please try again.';
+                        lastMsg.error = true;
+                    }
+                    delete lastMsg.streaming;
+                }
+                return updated;
+            });
+        } finally {
+            setLoading(false);
+            abortControllerRef.current = null;
         }
     };
 
@@ -162,6 +243,27 @@ export const ChatPage = () => {
         // automatic batching coalesce a rapid burst into far fewer renders,
         // which is what we actually want here — still feels live, just
         // doesn't block the browser.
+        //
+        // 'stopped' is handled separately from the timeline reducer below —
+        // it's a terminal marker (server-side cancellation, via the Stop
+        // button or a stop issued from another tab), not a piece of
+        // rendered content, so it just flags the message and clears
+        // `streaming` instead of going through appendTimelineEvent.
+        if (event.type === 'stopped') {
+            setMessages((prev) => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                const lastMsg = { ...updated[lastIndex] };
+                if (lastMsg.role === 'assistant') {
+                    lastMsg.stopped = true;
+                    delete lastMsg.streaming;
+                    updated[lastIndex] = lastMsg;
+                }
+                return updated;
+            });
+            return;
+        }
+
         setMessages((prev) => {
             const updated = [...prev];
             const lastIndex = updated.length - 1;
