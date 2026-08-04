@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -652,7 +652,15 @@ const ArtifactStep = ({ artifact, onClick }) => {
     );
 };
 
-export const Message = ({ message, onOpenArtifact }) => {
+// Memoized: without this, EVERY message in the conversation re-renders on
+// EVERY stream event (each new token/tool-call/exec_output line creates a
+// new top-level `messages` array reference in ChatPage, and ChatWindow maps
+// over the whole array). For a long conversation this means the entire
+// history re-renders on every single streamed token, not just the message
+// actively updating. React.memo's default shallow prop comparison correctly
+// skips re-rendering any message whose own object reference hasn't changed
+// (only the actively-streaming message gets a new one each event).
+const MessageComponent = ({ message, onOpenArtifact }) => {
     const { isDark } = useTheme();
     const isUser = message.role === 'user';
 
@@ -807,3 +815,5 @@ export const Message = ({ message, onOpenArtifact }) => {
         </div>
     );
 };
+
+export const Message = memo(MessageComponent);
