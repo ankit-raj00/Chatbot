@@ -10,13 +10,34 @@ import { useTheme } from '../../context/ThemeContext';
 import { API_BASE_URL } from '../../config';
 import { MermaidDiagram } from './MermaidDiagram';
 
+// Extension -> glyph colour. Purely cosmetic; unknown types fall back to slate.
+const EXT_COLORS = {
+    pptx: 'linear-gradient(150deg,#e2703a,#c2410c)',
+    ppt: 'linear-gradient(150deg,#e2703a,#c2410c)',
+    xlsx: 'linear-gradient(150deg,#22a565,#15803d)',
+    xls: 'linear-gradient(150deg,#22a565,#15803d)',
+    csv: 'linear-gradient(150deg,#22a565,#15803d)',
+    docx: 'linear-gradient(150deg,#4b82e8,#1d4ed8)',
+    doc: 'linear-gradient(150deg,#4b82e8,#1d4ed8)',
+    pdf: 'linear-gradient(150deg,#e8544b,#b91c1c)',
+    png: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    jpg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    jpeg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    gif: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    webp: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+};
+
+const glyphFor = (ext) => EXT_COLORS[(ext || '').toLowerCase()] || 'linear-gradient(150deg,#64748b,#334155)';
+
 const FileCreatedStep = ({ file, onClick }) => {
+    const ext = (file.ext || file.name?.split('.').pop() || '').toLowerCase();
     return (
         <div
-            className="w-full rounded-lg border flex items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)] cursor-pointer group"
+            className="group w-full rounded-[14px] border flex items-center gap-3 px-3.5 py-3 text-left cursor-pointer transition-all duration-150 hover:-translate-y-px"
             style={{
-                backgroundColor: 'var(--input-bg)',
-                borderColor: 'var(--border-color)'
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border-color)',
+                boxShadow: 'var(--shadow-1)'
             }}
             onClick={(e) => {
                 e.preventDefault();
@@ -24,32 +45,45 @@ const FileCreatedStep = ({ file, onClick }) => {
             }}
             title="Click to preview"
         >
-            <button 
+            <div
+                className="w-9 h-9 rounded-[10px] flex-none grid place-items-center text-[8.5px] font-bold tracking-wide text-white"
+                style={{ background: glyphFor(ext) }}
+            >
+                {ext ? ext.toUpperCase().slice(0, 4) : 'FILE'}
+            </div>
+
+            <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-[13.5px] font-medium truncate transition-colors group-hover:text-[var(--accent)]"
+                    style={{ color: 'var(--text-primary)' }}>
+                    {file.name}
+                </span>
+                <span className="text-[11.5px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+                    {(file.size_bytes / 1024).toFixed(1)} KB · generated in sandbox
+                </span>
+            </div>
+
+            <button
                 onClick={(e) => {
                     e.stopPropagation();
                     const a = document.createElement('a');
-                    const fullUrl = file.download_url.startsWith('http') ? file.download_url : `${API_BASE_URL}${file.download_url.startsWith('/') ? '' : '/'}${file.download_url}`;
+                    const fullUrl = file.download_url.startsWith('http')
+                        ? file.download_url
+                        : `${API_BASE_URL}${file.download_url.startsWith('/') ? '' : '/'}${file.download_url}`;
                     a.href = fullUrl;
                     a.download = file.name;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                 }}
-                className="w-8 h-8 rounded bg-green-500/10 hover:bg-green-500/20 flex items-center justify-center flex-shrink-0 transition-colors"
+                className="flex-none flex items-center gap-1.5 text-[12.5px] font-medium px-2.5 py-1.5 rounded-[9px] border transition-colors hover:bg-[var(--hover-bg)]"
+                style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-color)', backgroundColor: 'var(--surface)' }}
                 title="Download file"
             >
-                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                 </svg>
+                <span className="hidden sm:inline">Download</span>
             </button>
-            <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors" style={{ color: 'var(--text-primary)' }}>
-                    {file.name}
-                </span>
-                <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
-                    {(file.size_bytes / 1024).toFixed(1)} KB • {file.ext ? file.ext.toUpperCase() : 'FILE'}
-                </span>
-            </div>
         </div>
     );
 };
@@ -89,30 +123,28 @@ const LiveTerminal = ({ outputs }) => {
 
     return (
         <div
-            className="mt-2 rounded overflow-hidden flex flex-col font-mono text-[11px] leading-snug"
-            style={{ backgroundColor: '#1e1e1e', color: '#d4d4d4', border: '1px solid var(--border-color)' }}
+            className="mx-3 mb-3 rounded-[11px] overflow-hidden flex flex-col font-mono text-[11.5px] leading-relaxed"
+            style={{ backgroundColor: 'var(--term-bg)', color: 'var(--term-fg)', border: '1px solid rgba(255,255,255,.06)' }}
         >
-            <div className="flex items-center px-3 py-1.5 bg-[#2d2d2d] border-b border-[#404040]">
-                <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
-                </div>
-                <span className="ml-3 text-[#858585] font-sans text-[10px] uppercase tracking-wider">Terminal</span>
+            <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#4ade80' }} />
+                <span className="font-sans text-[10px] uppercase tracking-[0.08em]" style={{ color: 'var(--term-dim)' }}>
+                    stdout
+                </span>
                 {outputs.length > _TERMINAL_MAX_LINES && (
-                    <span className="ml-auto mr-1 text-[#858585] font-sans text-[10px]">
+                    <span className="ml-auto font-sans text-[10px]" style={{ color: 'var(--term-dim)' }}>
                         {outputs.length.toLocaleString()} lines
                     </span>
                 )}
             </div>
             <div ref={terminalRef} onScroll={handleScroll} className="p-3 max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {truncatedCount > 0 && (
-                    <div className="text-[#858585] italic pb-1 mb-1 border-b border-[#404040]">
+                    <div className="italic pb-1 mb-1" style={{ color: 'var(--term-dim)', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
                         …{truncatedCount.toLocaleString()} earlier lines hidden (showing the most recent {_TERMINAL_MAX_LINES})
                     </div>
                 )}
                 {visible.map((out, idx) => (
-                    <div key={idx} style={{ color: out.stream === 'stderr' ? '#f14c4c' : 'inherit' }}>
+                    <div key={idx} style={{ color: out.stream === 'stderr' ? '#f87171' : 'inherit' }}>
                         {out.line}
                     </div>
                 ))}
@@ -129,25 +161,23 @@ const EditFileStep = ({ step }) => {
     const filename = diff?.path?.split('/').pop() || diff?.path || (step.args?.path);
     return (
         <div
-            className="rounded-lg border flex items-center gap-2 px-3 py-2"
-            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border-color)' }}
+            className="rounded-[11px] border flex items-center gap-2.5 px-3 py-2"
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-1)' }}
         >
-            <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <svg className="w-4 h-4 flex-none" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span className="text-sm truncate flex-1" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-[13.5px] truncate flex-1" style={{ color: 'var(--text-primary)' }}>
                 {step.status === 'running' ? 'Editing file…' : step.status === 'interrupted' ? 'Edit interrupted' : (filename ? `Edited ${filename}` : 'Edited file')}
             </span>
             {filename && (
-                <span
-                    className="text-xs font-mono px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
-                >
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded flex-none"
+                    style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
                     {filename}
                 </span>
             )}
             {diff && (
-                <span className="text-xs font-mono flex-shrink-0">
+                <span className="text-[11px] font-mono flex-none">
                     <span style={{ color: '#3fb950' }}>+{diff.added}</span>{' '}
                     <span style={{ color: '#f85149' }}>-{diff.removed}</span>
                 </span>
@@ -160,10 +190,10 @@ const ToolStep = ({ step }) => {
     if (step.name === 'edit_file') {
         return <EditFileStep step={step} />;
     }
-    const isCompleted   = step.status === 'completed';
-    const isRunning     = step.status === 'running';
+    const isCompleted = step.status === 'completed';
+    const isRunning = step.status === 'running';
     const isInterrupted = step.status === 'interrupted';
-    const isExecTool  = step.name === 'run_python' || step.name === 'run_shell';
+    const isExecTool = step.name === 'run_python' || step.name === 'run_shell';
 
     // Auto-expand while running, allow manual toggle once done
     const [manualExpanded, setManualExpanded] = useState(null); // null = follow auto
@@ -188,58 +218,58 @@ const ToolStep = ({ step }) => {
 
     return (
         <div
-            className="rounded-lg border overflow-hidden transition-all"
+            className="rounded-[11px] border overflow-hidden transition-all duration-150"
             style={{
-                backgroundColor: 'var(--input-bg)',
-                borderColor: isRunning ? 'var(--accent)' : 'var(--border-color)',
-                boxShadow: isRunning ? '0 0 0 1px var(--accent)20' : 'none'
+                backgroundColor: 'var(--surface)',
+                borderColor: isRunning ? 'var(--violet-line)' : 'var(--border-color)',
+                boxShadow: 'var(--shadow-1)'
             }}
         >
-            {/* Header */}
             <button
                 onClick={toggleExpand}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--hover-bg)] transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]"
             >
-                {/* Status Icon */}
+                {/* Status icon */}
                 {isCompleted ? (
-                    <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg className="w-3.5 h-3.5 flex-none" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <path d="M20 6L9 17l-5-5" />
                     </svg>
                 ) : isInterrupted ? (
-                    <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg className="w-3.5 h-3.5 flex-none" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 ) : (
-                    <svg className="w-4 h-4 flex-shrink-0 animate-spin" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg className="w-3.5 h-3.5 flex-none animate-spin" style={{ color: 'var(--violet)' }} fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                 )}
 
-                {/* Tool Name */}
-                <span className="text-sm font-medium flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                {/* Tool name — monospace, because it's a machine identifier */}
+                <span className="text-[12.5px] font-mono font-medium flex-1 truncate tracking-tight"
+                    style={{ color: 'var(--text-primary)' }}>
                     {step.name}
                 </span>
 
-                {/* Running / interrupted badge */}
                 {isRunning && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)20', color: 'var(--accent)' }}>
+                    <span className="text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded-full flex-none"
+                        style={{ backgroundColor: 'var(--violet-soft)', color: 'var(--violet)' }}>
                         RUNNING
                     </span>
                 )}
                 {isInterrupted && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--text-secondary)20', color: 'var(--text-secondary)' }}>
+                    <span className="text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded-full flex-none"
+                        style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text-tertiary)' }}>
                         INTERRUPTED
                     </span>
                 )}
 
-                {/* Expand Arrow */}
                 <svg
-                    className={`w-4 h-4 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className={`w-3.5 h-3.5 flex-none transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+                    fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"
+                    style={{ color: 'var(--text-tertiary)' }}
                 >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                    <path d="M9 6l6 6-6 6" />
                 </svg>
             </button>
 
@@ -248,16 +278,17 @@ const ToolStep = ({ step }) => {
                 grid-rows[0fr->1fr] avoids needing a fixed max-height guess. */}
             <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                 <div className="overflow-hidden">
-                    <div className="border-t space-y-0" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="border-t" style={{ borderColor: 'var(--border-color)' }}>
                         {/* Input */}
                         {formattedArgs && (
                             <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    {isExecTool ? '⌨ Code' : '⌨ Input'}
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-3 pt-2.5 pb-1.5"
+                                    style={{ color: 'var(--text-tertiary)' }}>
+                                    {isExecTool ? 'Code' : 'Input'}
                                 </p>
                                 <pre
-                                    className="text-xs px-3 pb-2 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
-                                    style={{ color: 'var(--text-primary)', maxHeight: '200px', overflowY: 'auto' }}
+                                    className="text-[12px] px-3 pb-2.5 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
+                                    style={{ color: 'var(--text-secondary)', maxHeight: '200px', overflowY: 'auto' }}
                                 >
                                     {formattedArgs}
                                 </pre>
@@ -272,11 +303,12 @@ const ToolStep = ({ step }) => {
                         {/* Result — shown after completion */}
                         {step.result && (
                             <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider px-3 pt-2 pb-1" style={{ color: 'var(--text-secondary)' }}>
-                                    ✓ Result
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-3 pt-2.5 pb-1.5"
+                                    style={{ color: 'var(--text-tertiary)' }}>
+                                    Result
                                 </p>
                                 <pre
-                                    className="text-xs px-3 pb-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
+                                    className="text-[12px] px-3 pb-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed"
                                     style={{ color: 'var(--accent)', maxHeight: '150px', overflowY: 'auto' }}
                                 >
                                     {typeof step.result === 'string' ? step.result : JSON.stringify(step.result, null, 2)}
@@ -292,75 +324,62 @@ const ToolStep = ({ step }) => {
 
 // Icon shown in the timeline's connector-line node for each step type.
 const TimelineIcon = ({ type, done }) => {
-    const common = "w-4 h-4";
+    const common = 'w-3.5 h-3.5';
     if (type === 'tool' && !done) {
         return (
             <svg className={`${common} animate-spin`} fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
         );
     }
-    if (type === 'tool' && done) {
-        return (
-            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-        );
-    }
-    if (type === 'skill') {
-        return (
-            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-        );
-    }
-    if (type === 'artifact') {
-        return (
-            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-        );
-    }
-    if (type === 'files_created') {
-        return (
-            <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-        );
-    }
-    // 'text' — narration / thinking
+    const path = {
+        tool: 'M20 6L9 17l-5-5',
+        skill: 'M12 2l2.6 6.3L21 9.3l-4.7 4.3 1.2 6.4L12 17l-5.5 3 1.2-6.4L3 9.3l6.4-1z',
+        artifact: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        files_created: 'M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2',
+        text: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    }[type] || 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z';
+
     return (
-        <svg className={common} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg className={common} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            <path d={path} />
         </svg>
     );
 };
 
-// One node in the vertical connector-line timeline: an icon-in-circle on the
-// line, with the step's content to its right. `last` skips the line segment
-// below the final entry.
-const TimelineNode = ({ type, done, last, children }) => (
-    <div className="relative flex gap-3 timeline-node-in">
-        {!last && (
+// Two accents carry meaning consistently: violet = the agent's own machinery
+// (a tool actively running, a skill being loaded), jade = a finished result.
+function nodeTone(type, done) {
+    if (type === 'tool' && !done) return { bg: 'var(--violet-soft)', bd: 'var(--violet-line)', fg: 'var(--violet)' };
+    if (type === 'skill') return { bg: 'var(--violet-soft)', bd: 'var(--violet-line)', fg: 'var(--violet)' };
+    if (type === 'tool' || type === 'artifact' || type === 'files_created') {
+        return { bg: 'var(--accent-soft)', bd: 'var(--accent-line)', fg: 'var(--accent)' };
+    }
+    return { bg: 'var(--surface-2)', bd: 'var(--border-color)', fg: 'var(--text-tertiary)' };
+}
+
+// One node in the vertical connector-line timeline: an icon chip on the rail,
+// with the step's content to its right. `last` skips the line segment below
+// the final entry.
+const TimelineNode = ({ type, done, last, children }) => {
+    const tone = nodeTone(type, done);
+    return (
+        <div className="relative flex gap-3 timeline-node-in">
+            {!last && (
+                <div className="absolute left-[11.5px] top-7 bottom-0 w-px"
+                    style={{ backgroundColor: 'var(--border-color)' }} />
+            )}
             <div
-                className="absolute left-[13px] top-7 bottom-0 w-px"
-                style={{ backgroundColor: 'var(--border-color)' }}
-            />
-        )}
-        <div
-            className="relative z-10 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-300"
-            style={{
-                backgroundColor: type === 'tool' && !done ? 'var(--accent)20' : 'var(--input-bg)',
-                color: type === 'tool' && !done ? 'var(--accent)' : 'var(--text-secondary)',
-                border: '1px solid var(--border-color)'
-            }}
-        >
-            <TimelineIcon type={type} done={done} />
+                className="relative z-10 w-6 h-6 rounded-[8px] flex items-center justify-center flex-none transition-colors duration-300"
+                style={{ backgroundColor: tone.bg, color: tone.fg, border: `1px solid ${tone.bd}` }}
+            >
+                <TimelineIcon type={type} done={done} />
+            </div>
+            <div className="flex-1 min-w-0 pb-4">{children}</div>
         </div>
-        <div className="flex-1 min-w-0 pb-4">{children}</div>
-    </div>
-);
+    );
+};
 
 // Shared markdown renderer used for both narration segments and the final answer.
 const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
@@ -379,23 +398,24 @@ const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
 
                 if (!inline && match) {
                     return (
-                        <details className="mb-4 rounded-lg overflow-hidden border border-[var(--border-color)] group">
+                        <details className="mb-4 rounded-[11px] overflow-hidden border group" style={{ borderColor: 'var(--border-color)' }}>
                             <summary
-                                className="px-4 py-2 cursor-pointer bg-[var(--bg-secondary)] font-medium text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors flex items-center justify-between select-none"
+                                className="px-3.5 py-2 cursor-pointer font-medium text-[13px] transition-colors flex items-center justify-between select-none hover:bg-[var(--hover-bg)]"
+                                style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)' }}
                             >
                                 <div className="flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-[var(--text-secondary)] transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M9 5l7 7-7 7" />
                                     </svg>
-                                    Code Snippet ({lang})
+                                    <span className="font-mono text-[12px]">{lang}</span>
                                 </div>
                             </summary>
-                            <div className="border-t border-[var(--border-color)]">
+                            <div className="border-t" style={{ borderColor: 'var(--border-color)' }}>
                                 <SyntaxHighlighter
                                     style={isDark ? oneDark : oneLight}
                                     language={lang}
                                     PreTag="div"
-                                    customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.875rem' }}
+                                    customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.8125rem' }}
                                     {...props}
                                 >
                                     {codeString}
@@ -406,8 +426,8 @@ const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
                 }
                 return (
                     <code
-                        className="px-1.5 py-0.5 rounded text-sm"
-                        style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}
+                        className="px-1.5 py-0.5 rounded text-[0.9em] font-mono"
+                        style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-primary)' }}
                         {...props}
                     >
                         {children}
@@ -436,21 +456,22 @@ const MarkdownContent = ({ content, isDark, onOpenArtifact }) => (
                                 onOpenArtifact({ type: 'file_preview', title: label, url: url, ext: ext.toLowerCase() });
                             }}
                             style={{ color: 'var(--accent)' }}
-                            className="underline"
+                            className="underline underline-offset-2 decoration-[var(--accent-line)] hover:decoration-[var(--accent)]"
                         >
                             {props.children}
                         </a>
                     );
                 }
                 return (
-                    <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }} className="underline">
+                    <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}
+                        className="underline underline-offset-2 decoration-[var(--accent-line)] hover:decoration-[var(--accent)]">
                         {props.children}
                     </a>
                 );
             },
-            p({ children }) { return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>; },
-            ul({ children }) { return <ul className="list-disc pl-6 mb-3 space-y-1">{children}</ul>; },
-            ol({ children }) { return <ol className="list-decimal pl-6 mb-3 space-y-1">{children}</ol>; },
+            p({ children }) { return <p className="mb-3 last:mb-0 leading-[1.72]">{children}</p>; },
+            ul({ children }) { return <ul className="list-disc pl-6 mb-3 space-y-1 marker:text-[var(--text-tertiary)]">{children}</ul>; },
+            ol({ children }) { return <ol className="list-decimal pl-6 mb-3 space-y-1 marker:text-[var(--text-tertiary)]">{children}</ol>; },
         }}
     >
         {content}
@@ -512,13 +533,17 @@ const PhaseGroup = ({ entries, onOpenArtifact }) => {
         <div>
             <button
                 onClick={() => setManualExpanded(prev => !(prev !== null ? prev : hasRunning))}
-                className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
+                className="flex items-center gap-1.5 text-[13.5px] transition-opacity hover:opacity-80"
                 style={{ color: 'var(--text-secondary)' }}
             >
-                <svg className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg className={`w-3.5 h-3.5 flex-none transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M9 5l7 7-7 7" />
                 </svg>
-                {summarizePhase(entries)}
+                {hasRunning ? (
+                    <span className="ax-shimmer">{summarizePhase(entries)}</span>
+                ) : (
+                    summarizePhase(entries)
+                )}
             </button>
 
             <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
@@ -580,7 +605,7 @@ const AgentTimeline = ({ timeline, isDark, onOpenArtifact }) => {
                     if (!group.entry.content?.trim()) return null;
                     return (
                         <TimelineNode key={idx} type="text" last={last}>
-                            <div className="prose prose-sm max-w-none pt-0.5 dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
+                            <div className="prose prose-sm max-w-none pt-0.5 dark:prose-invert text-[14.8px]" style={{ color: 'var(--text-primary)' }}>
                                 <MarkdownContent content={group.entry.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
                             </div>
                         </TimelineNode>
@@ -610,22 +635,21 @@ const SkillStep = ({ skill, onClick }) => {
     return (
         <button
             onClick={() => onClick({ type: 'skill', title: skill.name, data: skill.content })}
-            className="w-full rounded-lg border flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]"
-            style={{
-                backgroundColor: 'var(--input-bg)',
-                borderColor: 'var(--border-color)'
-            }}
+            className="w-full rounded-[11px] border flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]"
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-1)' }}
         >
-            <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <span className="w-6 h-6 rounded-[8px] grid place-items-center flex-none border"
+                style={{ backgroundColor: 'var(--violet-soft)', borderColor: 'var(--violet-line)', color: 'var(--violet)' }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 2l2.6 6.3L21 9.3l-4.7 4.3 1.2 6.4L12 17l-5.5 3 1.2-6.4L3 9.3l6.4-1z" />
                 </svg>
-            </div>
-            <span className="text-sm font-medium flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
-                Using skill: {skill.name}
             </span>
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <span className="text-[13.5px] flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                <span style={{ color: 'var(--text-tertiary)' }}>Loaded skill</span>{' '}
+                <span className="font-mono text-[12.5px]">{skill.name}</span>
+            </span>
+            <svg className="w-3.5 h-3.5 flex-none" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M9 5l7 7-7 7" />
             </svg>
         </button>
     );
@@ -635,26 +659,62 @@ const ArtifactStep = ({ artifact, onClick }) => {
     return (
         <button
             onClick={() => onClick({ type: 'artifact', title: artifact.name, data: artifact.content })}
-            className="w-full rounded-lg border flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]"
-            style={{
-                backgroundColor: 'var(--input-bg)',
-                borderColor: 'var(--border-color)'
-            }}
+            className="w-full rounded-[11px] border flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[var(--hover-bg)]"
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-1)' }}
         >
-            <div className="w-6 h-6 rounded bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <span className="w-6 h-6 rounded-[8px] grid place-items-center flex-none border"
+                style={{ backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent-line)', color: 'var(--accent)' }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-            </div>
-            <span className="text-sm font-medium flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
-                Generated artifact: {artifact.name}
             </span>
-            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <span className="text-[13.5px] flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                <span style={{ color: 'var(--text-tertiary)' }}>Generated</span> {artifact.name}
+            </span>
+            <svg className="w-3.5 h-3.5 flex-none" style={{ color: 'var(--text-tertiary)' }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M9 5l7 7-7 7" />
             </svg>
         </button>
     );
 };
+
+// Attachment chips shown on a message (user uploads).
+const AttachmentChips = ({ attachments, onOpenArtifact }) => (
+    <div className="mb-2 flex flex-wrap gap-1.5 justify-end">
+        {attachments.map((attachment, index) => {
+            const name = attachment.original_name || attachment.name || 'File';
+            const ext = name.split('.').pop()?.toLowerCase() || '';
+            const isImage = attachment.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+
+            return (
+                <button
+                    key={index}
+                    className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-[9px] border transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--surface-2)' }}
+                    onClick={() => {
+                        if (attachment.cloudinary_url || attachment.sandbox_path) {
+                            const url = attachment.cloudinary_url || `/api/outputs/my/${name}`;
+                            onOpenArtifact({ type: 'file_preview', title: name, url: url, ext: ext });
+                        }
+                    }}
+                    title="Preview file"
+                >
+                    <span className="w-5 h-5 rounded-[6px] grid place-items-center flex-none text-white text-[7px] font-bold"
+                        style={{ background: glyphFor(ext) }}>
+                        {isImage ? (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                <path d="M3 7a3 3 0 013-3h12a3 3 0 013 3v10a3 3 0 01-3 3H6a3 3 0 01-3-3z" />
+                            </svg>
+                        ) : (ext ? ext.toUpperCase().slice(0, 3) : 'F')}
+                    </span>
+                    <span className="text-[11.5px] font-medium max-w-[150px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                        {name}
+                    </span>
+                </button>
+            );
+        })}
+    </div>
+);
 
 // Memoized: without this, EVERY message in the conversation re-renders on
 // EVERY stream event (each new token/tool-call/exec_output line creates a
@@ -680,30 +740,64 @@ const MessageComponent = ({ message, onOpenArtifact }) => {
         ? message.timeline.map(e => e.status === 'running' ? { ...e, status: 'interrupted' } : e)
         : message.timeline;
 
+    // ---------- user turn: right-aligned bubble, no avatar ----------
+    if (isUser) {
+        return (
+            <div className="py-3">
+                <div className="flex justify-end">
+                    <div className="max-w-[80%] min-w-0">
+                        {message.attachments && message.attachments.length > 0 && (
+                            <AttachmentChips attachments={message.attachments} onOpenArtifact={onOpenArtifact} />
+                        )}
+                        <div
+                            className="rounded-[18px] rounded-br-[6px] border px-4 py-2.5 text-[14.5px] leading-[1.6]"
+                            style={{
+                                backgroundColor: 'var(--surface-2)',
+                                borderColor: 'var(--border-color)',
+                                color: 'var(--text-primary)',
+                                boxShadow: 'var(--shadow-1)'
+                            }}
+                        >
+                            <div className="prose prose-sm max-w-none dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
+                                <MarkdownContent content={message.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ---------- assistant turn ----------
     return (
-        <div className="flex gap-4 py-4">
-            {/* Avatar */}
-            <div
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-medium"
-                style={{
-                    backgroundColor: isUser ? 'var(--text-secondary)' : 'var(--accent)',
-                    color: 'white'
-                }}
-            >
-                {isUser ? 'U' : 'AI'}
+        <div className="py-3">
+            {/* Identity row */}
+            <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-[22px] h-[22px] rounded-[7px] grid place-items-center flex-none border"
+                    style={{ backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent-line)', color: 'var(--accent)' }}>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <path d="M4 17l6-6-6-6M12 19h8" />
+                    </svg>
+                </div>
+                <span className="text-[12.5px] font-semibold" style={{ color: 'var(--text-primary)' }}>AgentX</span>
+                {message.streaming && (
+                    <span className="text-[11px] ax-shimmer">working…</span>
+                )}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
+            <div className="pl-[32px] min-w-0">
                 {/* Hallucination Warning */}
                 {message.hallucination_warning && (
-                    <div className="mb-3 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm flex items-start gap-2">
-                        <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <div className="mb-3 px-3.5 py-2.5 rounded-[11px] text-[13px] flex items-start gap-2.5 border"
+                        style={{ backgroundColor: 'rgba(180,116,12,.08)', borderColor: 'rgba(180,116,12,.28)', color: 'var(--text-primary)' }}>
+                        <svg className="w-4 h-4 flex-none mt-0.5" style={{ color: 'var(--amber, #b4740c)' }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         <div>
-                            <strong>Possible Hallucination Detected</strong>
-                            <p className="opacity-80 mt-1">The system could not fully verify this answer against your retrieved context. Please double-check the sources.</p>
+                            <strong className="font-semibold">Possible hallucination detected</strong>
+                            <p className="opacity-80 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                                The system could not fully verify this answer against your retrieved context. Please double-check the sources.
+                            </p>
                         </div>
                     </div>
                 )}
@@ -715,10 +809,10 @@ const MessageComponent = ({ message, onOpenArtifact }) => {
                     <>
                         <AgentTimeline timeline={displayTimeline} isDark={isDark} onOpenArtifact={onOpenArtifact} />
                         {message.stopped && (
-                            <div className="mt-1 mb-2 px-3 py-2 rounded-lg text-xs flex items-center gap-2"
-                                 style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <div className="mt-1 mb-2 px-3 py-2 rounded-[10px] text-[12px] flex items-center gap-2 border"
+                                style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }}>
+                                <svg className="w-3.5 h-3.5 flex-none" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                    <path d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Response was interrupted (connection lost or stopped) before it finished.
                             </div>
@@ -759,59 +853,25 @@ const MessageComponent = ({ message, onOpenArtifact }) => {
                     </>
                 )}
 
-                {/* User Attachments */}
+                {/* Attachments on a non-user message (rare, but keep supported) */}
                 {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                        {message.attachments.map((attachment, index) => {
-                            const name = attachment.original_name || attachment.name || "File";
-                            const ext = name.split('.').pop()?.toLowerCase() || '';
-                            const isImage = attachment.mime_type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
-                            
-                            return (
-                                <div 
-                                    key={index} 
-                                    className="flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                                    style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
-                                    onClick={() => {
-                                        if (attachment.cloudinary_url || attachment.sandbox_path) {
-                                            const url = attachment.cloudinary_url || `/api/outputs/my/${name}`; // Use correct endpoint or cloudinary
-                                            onOpenArtifact({ type: 'file_preview', title: name, url: url, ext: ext });
-                                        }
-                                    }}
-                                    title="Preview file"
-                                >
-                                    <div className="w-8 h-8 flex flex-shrink-0 items-center justify-center rounded-md bg-[var(--bg-primary)]">
-                                        {isImage ? (
-                                            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                            </svg>
-                                        )}
-                                    </div>
-                                    <span className="text-xs font-medium max-w-[150px] truncate" style={{ color: 'var(--text-primary)' }}>
-                                        {name}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                    <div className="[&>div]:justify-start">
+                        <AttachmentChips attachments={message.attachments} onOpenArtifact={onOpenArtifact} />
                     </div>
                 )}
 
                 {/* Message Content — for assistant messages with a timeline, the final
                     answer is already the last 'text' node in AgentTimeline above, so
-                    this only renders for: user messages, legacy messages without a
-                    timeline, and the "Working..." placeholder before any event arrives. */}
+                    this only renders for: legacy messages without a timeline, and the
+                    "Working..." placeholder before any event arrives. */}
                 {!(message.timeline && message.timeline.length > 0) && (
-                    <div className="prose prose-sm max-w-none dark:prose-invert" style={{ color: 'var(--text-primary)' }}>
+                    <div className="prose prose-sm max-w-none dark:prose-invert text-[14.8px]" style={{ color: 'var(--text-primary)' }}>
                         {message.content ? (
                             <MarkdownContent content={message.content} isDark={isDark} onOpenArtifact={onOpenArtifact} />
                         ) : (
-                            <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.875rem' }}>
-                                {message.streaming ? 'Working...' : ''}
-                            </span>
+                            !message.streaming ? null : (
+                                <span className="text-[13.5px] ax-shimmer">Thinking…</span>
+                            )
                         )}
                     </div>
                 )}
