@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ragService } from '../../services/rag';
 
-export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
+export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete, onCancelled }) => {
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [status, setStatus] = useState('');
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState(null);
+    // Recursive setTimeout polling (pollJobStatus below) doesn't stop itself
+    // just because the modal closed — this flag is checked at the top of
+    // every poll so a cancel actually halts it instead of silently polling
+    // in the background forever.
+    const cancelledRef = useRef(false);
 
     // Reset state when modal opens
     useEffect(() => {
@@ -16,10 +21,23 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
             setStatus('');
             setProgress(0);
             setError(null);
+            cancelledRef.current = false;
         }
     }, [isOpen]);
 
     if (!isOpen) return null;
+
+    // Distinguishes "closed before doing anything" (no notice needed) from
+    // "cancelled a real in-progress upload" (worth telling the user about —
+    // see onCancelled, surfaced as a banner above the sidebar's Knowledge
+    // base card).
+    const handleCancel = () => {
+        if (uploading) {
+            cancelledRef.current = true;
+            onCancelled?.(file?.name);
+        }
+        onClose();
+    };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -29,8 +47,10 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
     };
 
     const pollJobStatus = async (jobId) => {
+        if (cancelledRef.current) return;
         try {
             const data = await ragService.pollIngestionJob(jobId);
+            if (cancelledRef.current) return;
             setStatus(data.status);
 
             if (data.status === 'completed' || data.status === 'complete') {
@@ -93,7 +113,7 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
             <div className="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-700">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-white">Upload Knowledge Document</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+                    <button onClick={handleCancel} className="text-gray-400 hover:text-white transition-colors">
                         ✕
                     </button>
                 </div>
@@ -127,7 +147,7 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
 
                             <div className="flex justify-end gap-3">
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleCancel}
                                     className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
                                 >
                                     Cancel
@@ -144,18 +164,25 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                     ) : (
                         <div className="py-8 text-center space-y-4">
                             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                            
+
                             <div>
                                 <p className="text-white font-medium capitalize">{status}...</p>
                                 <p className="text-sm text-gray-400 mt-1">This may take a minute for large files</p>
                             </div>
 
                             <div className="w-full bg-gray-700 rounded-full h-2 mt-4 overflow-hidden">
-                                <div 
+                                <div
                                     className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${progress}%` }}
                                 ></div>
                             </div>
+
+                            <button
+                                onClick={handleCancel}
+                                className="text-sm text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancel upload
+                            </button>
                         </div>
                     )}
                 </div>

@@ -55,6 +55,10 @@ export const ChatPage = () => {
     const [isRagEnabled, setIsRagEnabled] = useState(false);
     const [contextFiles, setContextFiles] = useState([]);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    // Transient notice shown above the sidebar's Knowledge base card — e.g.
+    // "Upload cancelled" — since closing the upload modal mid-upload used to
+    // give zero feedback that the cancel actually registered.
+    const [uploadNotice, setUploadNotice] = useState(null); // { message: string } | null
 
     // Right Panel State
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
@@ -129,7 +133,13 @@ export const ChatPage = () => {
             await chatService.resumeStream(id, (event) => handleStreamEvent(event), controller.signal);
             setMessages((prev) => {
                 const updated = [...prev];
-                delete updated[updated.length - 1].streaming;
+                // Must produce a NEW object (not mutate the existing one) — Message
+                // is React.memo'd and compares the `message` prop by reference. An
+                // in-place `delete` leaves the same object reference in the array,
+                // so memo sees "unchanged" and never re-renders away the "working…"
+                // shimmer, even though the turn actually finished (confirmed live).
+                const { streaming, ...rest } = updated[updated.length - 1];
+                updated[updated.length - 1] = rest;
                 return updated;
             });
         } catch (error) {
@@ -147,7 +157,7 @@ export const ChatPage = () => {
             if (!stopped) console.error('Failed to resume generation:', error);
             setMessages((prev) => {
                 const updated = [...prev];
-                const lastMsg = updated[updated.length - 1];
+                const lastMsg = { ...updated[updated.length - 1] };
                 if (lastMsg.role === 'assistant') {
                     if (stopped) {
                         lastMsg.stopped = true;
@@ -156,6 +166,7 @@ export const ChatPage = () => {
                         lastMsg.error = true;
                     }
                     delete lastMsg.streaming;
+                    updated[updated.length - 1] = lastMsg;
                 }
                 return updated;
             });
@@ -362,7 +373,11 @@ export const ChatPage = () => {
 
             setMessages((prev) => {
                 const updated = [...prev];
-                delete updated[updated.length - 1].streaming;
+                // See the identical comment in resumeGeneration — must be a new
+                // object reference, not an in-place mutation, or the memoized
+                // Message never re-renders away the "working…" shimmer.
+                const { streaming, ...rest } = updated[updated.length - 1];
+                updated[updated.length - 1] = rest;
                 return updated;
             });
         } catch (error) {
@@ -370,7 +385,7 @@ export const ChatPage = () => {
             if (!stopped) console.error('Failed to send message:', error);
             setMessages((prev) => {
                 const updated = [...prev];
-                const lastMsg = updated[updated.length - 1];
+                const lastMsg = { ...updated[updated.length - 1] };
                 if (lastMsg.role === 'assistant') {
                     if (stopped) {
                         // Clean user-initiated stop — keep whatever streamed so far,
@@ -381,6 +396,7 @@ export const ChatPage = () => {
                         lastMsg.error = true;
                     }
                     delete lastMsg.streaming;
+                    updated[updated.length - 1] = lastMsg;
                 }
                 return updated;
             });
@@ -414,6 +430,14 @@ export const ChatPage = () => {
     const handleToggleRag = useCallback(() => setIsRagEnabled(prev => !prev), []);
     const handleOpenKnowledgeUpload = useCallback(() => setIsUploadModalOpen(true), []);
     const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), []);
+
+    // Fires when the upload modal is dismissed mid-upload (see DocumentUploadModal's
+    // handleCancel) — shows a brief notice above the Knowledge base card, then
+    // clears itself so it doesn't linger indefinitely.
+    const handleUploadCancelled = useCallback((filename) => {
+        setUploadNotice({ message: filename ? `Upload cancelled — ${filename}` : 'Upload cancelled' });
+        setTimeout(() => setUploadNotice(null), 4000);
+    }, []);
 
     const conversationTitle = currentConversation?.title || 'New chat';
 
@@ -500,6 +524,30 @@ export const ChatPage = () => {
 
                     {/* Knowledge base */}
                     <div className="px-3 py-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+                        {uploadNotice && (
+                            <div
+                                className="mb-2 flex items-center gap-2 rounded-[10px] border px-2.5 py-2 text-[11.5px]"
+                                style={{
+                                    backgroundColor: 'var(--surface-2)',
+                                    borderColor: 'var(--border-color)',
+                                    color: 'var(--text-secondary)',
+                                }}
+                            >
+                                <svg className="w-3.5 h-3.5 flex-none" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                    <path d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.18A2 2 0 004.18 21h15.64a2 2 0 001.87-3.86l-8.18-14.18a2 2 0 00-3.42 0z" />
+                                </svg>
+                                <span className="truncate">{uploadNotice.message}</span>
+                                <button
+                                    onClick={() => setUploadNotice(null)}
+                                    className="ml-auto flex-none w-4 h-4 grid place-items-center rounded hover:bg-[var(--hover-bg)]"
+                                    title="Dismiss"
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24">
+                                        <path d="M18 6L6 18M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
                         <div
                             className="rounded-[12px] border px-3 py-2.5"
                             style={{
@@ -736,6 +784,7 @@ export const ChatPage = () => {
             <DocumentUploadModal
                 isOpen={isUploadModalOpen}
                 onClose={() => setIsUploadModalOpen(false)}
+                onCancelled={handleUploadCancelled}
                 onUploadComplete={() => {
                     setFileListVersion(v => v + 1);
                     if (!isRagEnabled) setIsRagEnabled(true);
