@@ -163,8 +163,16 @@ export const ChatPage = () => {
                     if (stopped) {
                         lastMsg.stopped = true;
                     } else {
-                        lastMsg.content = lastMsg.content || 'Sorry, I encountered an error. Please try again.';
+                        // A specific backend-provided message (e.g. the credit-cap
+                        // block) is more useful than the generic fallback — and for
+                        // the credit case, also surface it as a banner (reusing the
+                        // existing upload-notice mechanism) since it's actionable,
+                        // not just a "something went wrong" bubble.
+                        lastMsg.content = lastMsg.content || error?.message || 'Sorry, I encountered an error. Please try again.';
                         lastMsg.error = true;
+                        if (error?.code === 'credit_limit_reached') {
+                            setUploadNotice({ message: error.message });
+                        }
                     }
                     delete lastMsg.streaming;
                     updated[updated.length - 1] = lastMsg;
@@ -393,8 +401,16 @@ export const ChatPage = () => {
                         // just mark it as stopped rather than showing an error.
                         lastMsg.stopped = true;
                     } else {
-                        lastMsg.content = lastMsg.content || 'Sorry, I encountered an error. Please try again.';
+                        // A specific backend-provided message (e.g. the credit-cap
+                        // block) is more useful than the generic fallback — and for
+                        // the credit case, also surface it as a banner (reusing the
+                        // existing upload-notice mechanism) since it's actionable,
+                        // not just a "something went wrong" bubble.
+                        lastMsg.content = lastMsg.content || error?.message || 'Sorry, I encountered an error. Please try again.';
                         lastMsg.error = true;
+                        if (error?.code === 'credit_limit_reached') {
+                            setUploadNotice({ message: error.message });
+                        }
                     }
                     delete lastMsg.streaming;
                     updated[updated.length - 1] = lastMsg;

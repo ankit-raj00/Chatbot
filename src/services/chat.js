@@ -24,7 +24,9 @@ async function _consumeSSE(response, onChunk) {
                 const data = JSON.parse(line.slice(6));
 
                 if (data.error) {
-                    throw new Error(data.error);
+                    const err = new Error(data.error);
+                    if (data.error_code) err.code = data.error_code;
+                    throw err;
                 }
 
                 if (data.chunk) {
